@@ -41,7 +41,9 @@ async function reportErrorToVly(errorData: {
   }
 
   try {
-    await fetch(import.meta.env.VITE_VLY_MONITORING_URL, {
+    const monitoringUrl = import.meta.env.VITE_VLY_MONITORING_URL;
+    if (!monitoringUrl) return;
+    await fetch(monitoringUrl, {
       method: "POST",
       body: JSON.stringify({
         ...errorData,
@@ -158,7 +160,7 @@ class ErrorBoundary extends React.Component<
             error: "An error occurred",
             stack: "",
           }}
-          setError={() => {}}
+          setError={() => { }}
         />
       );
     }
