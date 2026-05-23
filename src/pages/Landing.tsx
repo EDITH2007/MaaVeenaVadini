@@ -76,10 +76,10 @@ export default function Landing() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-accent">
-                <img src="/logo.png" alt="Maa Veena Vaidini logo" className="w-full h-full object-cover" />
+                <img src="/logo.png" alt="Maa Veena vadini logo" className="w-full h-full object-cover" />
               </div>
               <div>
-                <p className="font-bold text-sm leading-tight">Maa Veena Vaidini</p>
+                <p className="font-bold text-sm leading-tight">Maa Veena vadini</p>
                 <p className="text-primary-foreground/70 text-xs"> Upper Primary School</p>
               </div>
             </div>
@@ -385,7 +385,7 @@ export default function Landing() {
             viewport={{ once: true }}
           >
             <div className="mx-auto mb-4 w-12 h-12 rounded-full overflow-hidden bg-primary/10">
-              <img src="/logo.png" alt="Maa Veena Vaidini logo" className="w-full h-full object-cover" />
+              <img src="/logo.png" alt="Maa Veena vadini logo" className="w-full h-full object-cover" />
             </div>
             <h2 className="text-3xl font-bold mb-4">Student Portal</h2>
             <p className="text-primary-foreground/80 mb-8 max-w-xl mx-auto">
@@ -419,7 +419,7 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
             {[
-              { icon: MapPin, label: "Address", value: "Maa Veena Vaidini School, India" },
+              { icon: MapPin, label: "Address", value: "Maa Veena vadini School, India" },
               { icon: Phone, label: "Phone", value: "+91 7999198550" },
               { icon: Mail, label: "Email", value: "info@mvvschool.edu.in" },
             ].map((item, i) => (
@@ -451,15 +451,15 @@ export default function Landing() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-accent">
-                <img src="/logo.png" alt="Maa Veena Vaidini logo" className="w-full h-full object-cover" />
+                <img src="/logo.png" alt="Maa Veena vadini logo" className="w-full h-full object-cover" />
               </div>
               <div>
-                <p className="font-bold text-sm">Maa Veena Vaidini School</p>
+                <p className="font-bold text-sm">Maa Veena vadini School</p>
                 <p className="text-primary-foreground/60 text-xs">Excellence in Education</p>
               </div>
             </div>
             <p className="text-primary-foreground/60 text-xs text-center">
-              © {new Date().getFullYear()} Maa Veena Vaidini Upper Primary School. All rights reserved.
+              © {new Date().getFullYear()} Maa Veena vadini Upper Primary School. All rights reserved.
             </p>
             <div className="flex gap-4 text-sm">
               <button onClick={() => navigate("/student")} className="hover:text-accent transition-colors text-xs">
