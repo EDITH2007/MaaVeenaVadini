@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  GraduationCap,
   Bell,
   Users,
   BookOpen,
@@ -76,8 +75,8 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
-                <GraduationCap className="w-5 h-5 text-accent-foreground" />
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-accent">
+                <img src="/logo.png" alt="Maa Veena Vaidini logo" className="w-full h-full object-cover" />
               </div>
               <div>
                 <p className="font-bold text-sm leading-tight">Maa Veena Vaidini</p>
@@ -385,7 +384,9 @@ export default function Landing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <GraduationCap className="w-12 h-12 mx-auto mb-4 text-accent" />
+            <div className="mx-auto mb-4 w-12 h-12 rounded-full overflow-hidden bg-primary/10">
+              <img src="/logo.png" alt="Maa Veena Vaidini logo" className="w-full h-full object-cover" />
+            </div>
             <h2 className="text-3xl font-bold mb-4">Student Portal</h2>
             <p className="text-primary-foreground/80 mb-8 max-w-xl mx-auto">
               Students can view their academic records, examination results, and personal details
@@ -449,8 +450,8 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
-                <GraduationCap className="w-4 h-4 text-accent-foreground" />
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-accent">
+                <img src="/logo.png" alt="Maa Veena Vaidini logo" className="w-full h-full object-cover" />
               </div>
               <div>
                 <p className="font-bold text-sm">Maa Veena Vaidini School</p>

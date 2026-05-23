@@ -35,7 +35,6 @@ import {
   Search,
   BookOpen,
   AlertCircle,
-  GraduationCap,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -352,8 +351,8 @@ export default function Admin() {
           <Card className="shadow-2xl border-0">
             <CardHeader className="text-center pb-2">
               <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center">
-                  <GraduationCap className="w-8 h-8 text-primary-foreground" />
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-primary">
+                  <img src="/logo.png" alt="Maa Veena Vaidini logo" className="w-full h-full object-cover" />
                 </div>
               </div>
               <CardTitle className="text-2xl font-bold">Admin Portal</CardTitle>
@@ -386,7 +385,9 @@ export default function Admin() {
       <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <GraduationCap className="w-6 h-6 shrink-0" />
+            <div className="w-6 h-6 rounded-full overflow-hidden bg-primary/10">
+              <img src="/logo.png" alt="Maa Veena Vaidini logo" className="w-full h-full object-cover" />
+            </div>
             <div>
               <h1 className="font-bold text-base leading-tight">Admin Dashboard</h1>
               <p className="text-primary-foreground/70 text-xs hidden sm:block">Maa Veena Vaidini School</p>

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Search, User, BookOpen, Hash, CreditCard, ArrowLeft } from "lucide-react";
+import { Search, User, BookOpen, Hash, CreditCard, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
 
 const SUBJECTS = [
@@ -281,7 +281,9 @@ export default function StudentProfile() {
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <GraduationCap className="w-6 h-6 shrink-0" />
+          <div className="w-6 h-6 rounded-full overflow-hidden bg-primary/10">
+            <img src="/logo.png" alt="Maa Veena Vaidini logo" className="w-full h-full object-cover" />
+          </div>
           <div>
             <h1 className="font-bold text-base leading-tight">Student Portal</h1>
             <p className="text-primary-foreground/70 text-xs">Maa Veena Vaidini School</p>
@@ -291,8 +293,8 @@ export default function StudentProfile() {
 
       <div className="max-w-2xl mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center mx-auto mb-4">
-            <GraduationCap className="w-8 h-8 text-primary-foreground" />
+          <div className="w-16 h-16 rounded-full overflow-hidden bg-primary mx-auto mb-4">
+            <img src="/logo.png" alt="Maa Veena Vaidini logo" className="w-full h-full object-cover" />
           </div>
           <h2 className="text-2xl font-bold mb-2">View Your Profile</h2>
           <p className="text-muted-foreground text-sm">Search by roll number or name to access your academic records</p>
