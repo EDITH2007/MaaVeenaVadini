@@ -81,7 +81,7 @@ export default function Landing() {
               </div>
               <div>
                 <p className="font-bold text-sm leading-tight">Maa Veena Vaidini</p>
-                <p className="text-primary-foreground/70 text-xs">Senior Secondary School</p>
+                <p className="text-primary-foreground/70 text-xs"> Upper Primary School</p>
               </div>
             </div>
 
@@ -186,12 +186,12 @@ export default function Landing() {
             className="text-center text-primary-foreground"
           >
             <Badge className="mb-6 bg-accent text-accent-foreground text-sm px-4 py-1">
-              Est. Since Years of Excellence
+              Est. 2011
             </Badge>
             <h1 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
-              Maa Veena Vaidini
+              Maa Veena Vadini
               <br />
-              <span className="text-accent">Senior Secondary School</span>
+              <span className="text-accent">Upper Primary School</span>
             </h1>
             <p className="text-lg md:text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-10">
               Nurturing young minds from Class 1 to 8 with quality education, values, and a
@@ -419,7 +419,7 @@ export default function Landing() {
           <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
             {[
               { icon: MapPin, label: "Address", value: "Maa Veena Vaidini School, India" },
-              { icon: Phone, label: "Phone", value: "+91 XXXXX XXXXX" },
+              { icon: Phone, label: "Phone", value: "+91 7999198550" },
               { icon: Mail, label: "Email", value: "info@mvvschool.edu.in" },
             ].map((item, i) => (
               <motion.div
@@ -458,7 +458,7 @@ export default function Landing() {
               </div>
             </div>
             <p className="text-primary-foreground/60 text-xs text-center">
-              © {new Date().getFullYear()} Maa Veena Vaidini Senior Secondary School. All rights reserved.
+              © {new Date().getFullYear()} Maa Veena Vaidini Upper Primary School. All rights reserved.
             </p>
             <div className="flex gap-4 text-sm">
               <button onClick={() => navigate("/student")} className="hover:text-accent transition-colors text-xs">
