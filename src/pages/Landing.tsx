@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -6,6 +6,12 @@ import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Bell,
   Users,
@@ -58,9 +64,101 @@ const FEATURES = [
   },
 ];
 
+type NoticeItem = {
+  _id: string;
+  title: string;
+  content: string;
+  date: string;
+  important?: boolean;
+  imageUrl?: string;
+  category?: string;
+};
+
+function NoticeCard({
+  notice,
+  onReadMore,
+}: {
+  notice: NoticeItem;
+  onReadMore: (notice: NoticeItem) => void;
+}) {
+  const contentRef = useRef<HTMLParagraphElement>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useEffect(() => {
+    const checkTruncation = () => {
+      if (contentRef.current) {
+        const overflowing =
+          contentRef.current.scrollHeight > contentRef.current.clientHeight;
+        setIsTruncated(overflowing);
+      }
+    };
+
+    checkTruncation();
+    window.addEventListener("resize", checkTruncation);
+    return () => window.removeEventListener("resize", checkTruncation);
+  }, [notice.content]);
+
+  return (
+    <Card className={`h-full flex flex-col justify-between ${notice.important ? "border-destructive/40" : ""}`}>
+      <div>
+        {notice.imageUrl && (
+          <div className="aspect-video overflow-hidden rounded-t-lg">
+            <img
+              src={notice.imageUrl}
+              alt={notice.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <h3 className="font-semibold text-sm leading-tight">{notice.title}</h3>
+            {notice.important && (
+              <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+            )}
+          </div>
+          <p
+            ref={contentRef}
+            className="text-muted-foreground text-sm line-clamp-3 mb-3 whitespace-pre-line"
+          >
+            {notice.content}
+          </p>
+        </CardContent>
+      </div>
+
+      <CardContent className="px-5 pb-5 pt-0 mt-auto">
+        {isTruncated && (
+          <button
+            onClick={() => onReadMore(notice)}
+            className="text-xs text-primary font-medium hover:underline inline-flex items-center gap-1 mb-3 cursor-pointer"
+          >
+            Read More <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <div className="flex items-center justify-between pt-2 border-t border-border/40">
+          <span className="text-xs text-muted-foreground">{notice.date}</span>
+          <div className="flex items-center gap-1.5">
+            {notice.category && (
+              <Badge variant="outline" className="text-xs">
+                {notice.category}
+              </Badge>
+            )}
+            {notice.important && (
+              <Badge variant="destructive" className="text-xs">
+                Important
+              </Badge>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Landing() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedNotice, setSelectedNotice] = useState<NoticeItem | null>(null);
   const notices = useQuery(api.notices.list);
 
   const scrollTo = (id: string) => {
@@ -263,37 +361,58 @@ export default function Landing() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05 }}
                 >
-                  <Card className={`h-full ${notice.important ? "border-destructive/40" : ""}`}>
-                    {(notice as { imageUrl?: string }).imageUrl && (
-                      <div className="aspect-video overflow-hidden rounded-t-lg">
-                        <img
-                          src={(notice as { imageUrl?: string }).imageUrl}
-                          alt={notice.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <CardContent className="p-5">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h3 className="font-semibold text-sm leading-tight">{notice.title}</h3>
-                        {notice.important && (
-                          <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                        )}
-                      </div>
-                      <p className="text-muted-foreground text-sm line-clamp-3 mb-3">{notice.content}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">{notice.date}</span>
-                        {notice.important && (
-                          <Badge variant="destructive" className="text-xs">Important</Badge>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <NoticeCard
+                    notice={notice as NoticeItem}
+                    onReadMore={(n) => setSelectedNotice(n)}
+                  />
                 </motion.div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Notice Detail Modal */}
+        <Dialog open={selectedNotice !== null} onOpenChange={(open) => !open && setSelectedNotice(null)}>
+          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+            {selectedNotice && (
+              <>
+                {selectedNotice.imageUrl && (
+                  <div className="aspect-video w-full overflow-hidden rounded-md mb-3">
+                    <img
+                      src={selectedNotice.imageUrl}
+                      alt={selectedNotice.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <DialogHeader>
+                  <div className="flex items-start justify-between gap-2 pr-6">
+                    <DialogTitle className="text-xl font-bold leading-snug">
+                      {selectedNotice.title}
+                    </DialogTitle>
+                  </div>
+                  <div className="flex items-center gap-2 pt-2 flex-wrap">
+                    <span className="text-xs text-muted-foreground">{selectedNotice.date}</span>
+                    {selectedNotice.category && (
+                      <Badge variant="outline" className="text-xs">
+                        {selectedNotice.category}
+                      </Badge>
+                    )}
+                    {selectedNotice.important && (
+                      <Badge variant="destructive" className="text-xs flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> Important
+                      </Badge>
+                    )}
+                  </div>
+                </DialogHeader>
+
+                <div className="mt-4 text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap">
+                  {selectedNotice.content}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </section>
 
       {/* About / Features Section */}
