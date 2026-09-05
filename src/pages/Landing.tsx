@@ -538,7 +538,7 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
             {[
-              { icon: MapPin, label: "Address", value: "Maa Veena vadini School, India" },
+              { icon: MapPin, label: "Address", value: "Maa Veena Vadini School, Chamari Khurd, Chhapara, Seoni, India" },
               { icon: Phone, label: "Phone", value: "+91 7999198550" },
               { icon: Mail, label: "Email", value: "info@mvvschool.edu.in" },
             ].map((item, i) => (
