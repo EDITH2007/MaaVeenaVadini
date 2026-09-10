@@ -8,10 +8,13 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
 import type * as auth_emailOtp from "../auth/emailOtp.js";
+import type * as calendar from "../calendar.js";
 import type * as http from "../http.js";
 import type * as notices from "../notices.js";
+import type * as studentDashboard from "../studentDashboard.js";
 import type * as students from "../students.js";
 import type * as users from "../users.js";
 
@@ -22,10 +25,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   auth: typeof auth;
   "auth/emailOtp": typeof auth_emailOtp;
+  calendar: typeof calendar;
   http: typeof http;
   notices: typeof notices;
+  studentDashboard: typeof studentDashboard;
   students: typeof students;
   users: typeof users;
 }>;

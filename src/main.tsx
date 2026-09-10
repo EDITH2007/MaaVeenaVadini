@@ -14,7 +14,7 @@ const Landing = lazy(() => import("./pages/Landing.tsx"));
 const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Admin = lazy(() => import("./pages/Admin.tsx"));
-const StudentProfile = lazy(() => import("./pages/StudentProfile.tsx"));
+const StudentDashboard = lazy(() => import("./pages/StudentDashboard.tsx"));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -63,9 +63,9 @@ createRoot(document.getElementById("root")!).render(
           <Suspense fallback={<RouteLoading />}>
             <Routes>
               <Route path="/" element={<Landing />} />
-              <Route path="/student" element={<StudentProfile />} />
+              <Route path="/student" element={<StudentDashboard />} />
               <Route path="/admin" element={<Admin />} />
-              <Route path="/auth" element={<AuthPage redirectAfterAuth="/" />} />
+              <Route path="/auth" element={<AuthPage redirectAfterAuth="/student" />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

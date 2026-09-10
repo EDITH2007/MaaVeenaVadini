@@ -191,7 +191,7 @@ function ProfileCard({ rollNumber }: { rollNumber: string }) {
       </Card>
 
       {/* Additional Info */}
-      {(student.aadharNumber || student.dkNumber) && (
+      {((student as any).aadharNumber || (student as any).dkNumber) && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -200,16 +200,16 @@ function ProfileCard({ rollNumber }: { rollNumber: string }) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {student.aadharNumber && (
+            {(student as any).aadharNumber && (
               <div className="flex justify-between items-center py-2 border-b last:border-0">
                 <span className="text-sm text-muted-foreground">Aadhar Number</span>
-                <span className="text-sm font-medium">{student.aadharNumber}</span>
+                <span className="text-sm font-medium">{(student as any).aadharNumber}</span>
               </div>
             )}
-            {student.dkNumber && (
+            {(student as any).dkNumber && (
               <div className="flex justify-between items-center py-2">
                 <span className="text-sm text-muted-foreground">DK Number</span>
-                <span className="text-sm font-medium">{student.dkNumber}</span>
+                <span className="text-sm font-medium">{(student as any).dkNumber}</span>
               </div>
             )}
           </CardContent>

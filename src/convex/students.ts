@@ -32,10 +32,15 @@ export const list = query({
 export const getByRoll = query({
   args: { rollNumber: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const student = await ctx.db
       .query("students")
       .withIndex("by_roll", (q) => q.eq("rollNumber", args.rollNumber.toUpperCase().trim()))
       .unique();
+    if (!student) return null;
+
+    // Public lookup strips confidential identity fields
+    const { aadharNumber, samagraId, mobileNumber, dateOfBirth, dkNumber, userId, ...publicData } = student;
+    return publicData;
   },
 });
 
@@ -44,7 +49,10 @@ export const searchByName = query({
   handler: async (ctx, args) => {
     const all = await ctx.db.query("students").take(500);
     const lower = args.name.toLowerCase().trim();
-    return all.filter((s) => s.name.toLowerCase().includes(lower)).slice(0, 20);
+    return all
+      .filter((s) => s.name.toLowerCase().includes(lower))
+      .slice(0, 20)
+      .map(({ aadharNumber, samagraId, mobileNumber, dateOfBirth, dkNumber, userId, ...publicData }) => publicData);
   },
 });
 

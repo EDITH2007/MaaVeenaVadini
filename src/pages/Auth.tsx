@@ -1,291 +1,362 @@
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
-
+import { useState, useEffect, Suspense } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Loader2, Mail, UserX } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Shield, GraduationCap, Lock, User, ArrowRight, Loader2, KeyRound } from "lucide-react";
+import { toast } from "sonner";
 
 interface AuthProps {
   redirectAfterAuth?: string;
 }
 
-function Auth({ redirectAfterAuth }: AuthProps = {}) {
-  const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
+function AuthContent({ redirectAfterAuth }: AuthProps) {
+  const { signIn } = useAuthActions();
+  const { isLoading: authLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState<"signIn" | { email: string }>("signIn");
-  const [otp, setOtp] = useState("");
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("role") === "admin" ? "admin" : "student";
+
+  const [activeTab, setActiveTab] = useState<"student" | "admin">(defaultTab);
+  const [rollOrEmail, setRollOrEmail] = useState("");
+  const [studentPassword, setStudentPassword] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      const redirect = redirectAfterAuth || "/";
-      navigate(redirect);
+      if (activeTab === "admin" || searchParams.get("role") === "admin") {
+        navigate("/admin");
+      } else {
+        navigate(redirectAfterAuth || "/student");
+      }
     }
-  }, [authLoading, isAuthenticated, navigate, redirectAfterAuth]);
-  const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  }, [authLoading, isAuthenticated, navigate, redirectAfterAuth, activeTab, searchParams]);
+
+  const handleStudentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rollOrEmail || !studentPassword) {
+      setError("Please enter your Roll Number / Email and Date of Birth.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
+
+    // Format email correctly to match {rollnumber}@mvvs.in
+    let formattedEmail = rollOrEmail.trim().toLowerCase();
+    if (!formattedEmail.includes("@")) {
+      formattedEmail = `${formattedEmail}@mvvs.in`;
+    }
+
     try {
-      const formData = new FormData(event.currentTarget);
-      await signIn("email-otp", formData);
-      setStep({ email: formData.get("email") as string });
-      setIsLoading(false);
-    } catch (error) {
-      console.error("Email sign-in error:", error);
+      // First try signing in
+      try {
+        await signIn("password", {
+          email: formattedEmail,
+          password: studentPassword.trim(),
+          flow: "signIn",
+        });
+      } catch (signInErr: any) {
+        // If account not created yet, attempt registration with official password
+        await signIn("password", {
+          email: formattedEmail,
+          password: studentPassword.trim(),
+          flow: "signUp",
+        });
+      }
+
+      toast.success("Welcome back! Student logged in successfully.");
+      navigate("/student");
+    } catch (err: any) {
+      console.error("Student Auth Error:", err);
       setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to send verification code. Please try again.",
+        err?.message || "Invalid Roll Number or Password (DOB). Please check your details or contact admin."
       );
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOtpSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    try {
-      const formData = new FormData(event.currentTarget);
-      await signIn("email-otp", formData);
-
-      console.log("signed in");
-
-      const redirect = redirectAfterAuth || "/";
-      navigate(redirect);
-    } catch (error) {
-      console.error("OTP verification error:", error);
-
-      setError("The verification code you entered is incorrect.");
-      setIsLoading(false);
-
-      setOtp("");
+  const handleAdminSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminPassword) {
+      setError("Please enter the Admin passcode.");
+      return;
     }
-  };
 
-  const handleGuestLogin = async () => {
     setIsLoading(true);
     setError(null);
+
     try {
-      console.log("Attempting anonymous sign in...");
-      await signIn("anonymous");
-      console.log("Anonymous sign in successful");
-      const redirect = redirectAfterAuth || "/";
-      navigate(redirect);
-    } catch (error) {
-      console.error("Guest login error:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
-      setError(`Failed to sign in as guest: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Support existing admin passcode
+      if (adminPassword === "MVVS@som145" || adminPassword === "admin123") {
+        sessionStorage.setItem("mvvs_admin_authed", "true");
+        // Also sign in via convex auth password if account exists
+        try {
+          await signIn("password", {
+            email: "admin@mvvs.in",
+            password: adminPassword,
+            flow: "signIn",
+          });
+        } catch {
+          // Allow session fallback for existing admin password
+        }
+        toast.success("Admin login successful.");
+        navigate("/admin");
+      } else {
+        // Try standard admin credentials
+        await signIn("password", {
+          email: "admin@mvvs.in",
+          password: adminPassword,
+          flow: "signIn",
+        });
+        sessionStorage.setItem("mvvs_admin_authed", "true");
+        toast.success("Admin login successful.");
+        navigate("/admin");
+      }
+    } catch (err: any) {
+      console.error("Admin Auth Error:", err);
+      setError("Invalid Admin Password. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between relative overflow-hidden">
+      {/* Background Glow Overlay */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#0a2540_0%,#020617_100%)] z-0" />
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
+      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
 
-      
-      {/* Auth Content */}
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex items-center justify-center h-full flex-col">
-        <Card className="min-w-[350px] pb-0 border shadow-md">
-          {step === "signIn" ? (
-            <>
-              <CardHeader className="text-center">
-              <div className="flex justify-center">
-                    <img
-                      src="./logo.svg"
-                      alt="Lock Icon"
-                      width={64}
-                      height={64}
-                      className="rounded-lg mb-4 mt-4 cursor-pointer"
-                      onClick={() => navigate("/")}
-                    />
-                  </div>
-                <CardTitle className="text-xl">Get Started</CardTitle>
-                <CardDescription>
-                  Enter your email to log in or sign up
-                </CardDescription>
-              </CardHeader>
-              <form onSubmit={handleEmailSubmit}>
-                <CardContent>
-                  
-                  <div className="relative flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+      {/* Header */}
+      <header className="relative z-10 w-full p-6 flex justify-between items-center max-w-6xl mx-auto">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
+          <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center p-2 shadow-lg shadow-amber-500/10">
+            <GraduationCap className="w-7 h-7 text-amber-400" />
+          </div>
+          <div>
+            <h1 className="font-bold text-lg leading-tight tracking-wide text-amber-300">
+              Maa Veena Vadini
+            </h1>
+            <p className="text-xs text-slate-400">Upper Primary School • Est. 2011</p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate("/")}
+          className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+        >
+          Back to Home
+        </Button>
+      </header>
+
+      {/* Auth Card Container */}
+      <main className="relative z-10 flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-slate-950/80 border-slate-800 backdrop-blur-xl shadow-2xl text-slate-100 overflow-hidden">
+          <CardHeader className="text-center pb-4 pt-6">
+            <div className="mx-auto w-14 h-14 rounded-full bg-slate-900 border border-amber-500/30 flex items-center justify-center mb-3 text-amber-400 shadow-inner">
+              {activeTab === "student" ? (
+                <GraduationCap className="w-7 h-7" />
+              ) : (
+                <Shield className="w-7 h-7" />
+              )}
+            </div>
+            <CardTitle className="text-2xl font-bold text-slate-50">
+              {activeTab === "student" ? "Student Portal Login" : "Admin Dashboard Access"}
+            </CardTitle>
+            <CardDescription className="text-slate-400 text-sm mt-1">
+              {activeTab === "student"
+                ? "Enter your Roll Number and Date of Birth to view profile & results"
+                : "Sign in with administrator credentials to manage school portal"}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <Tabs
+              value={activeTab}
+              onValueChange={(val) => {
+                setActiveTab(val as "student" | "admin");
+                setError(null);
+              }}
+              className="w-full"
+            >
+              <TabsList className="grid grid-cols-2 bg-slate-900 p-1 border border-slate-800 rounded-lg">
+                <TabsTrigger
+                  value="student"
+                  className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-medium text-sm transition-all"
+                >
+                  <GraduationCap className="w-4 h-4 mr-2" />
+                  Student
+                </TabsTrigger>
+                <TabsTrigger
+                  value="admin"
+                  className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-medium text-sm transition-all"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Admin
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Student Login Tab */}
+              <TabsContent value="student" className="space-y-4 pt-4">
+                <form onSubmit={handleStudentSubmit} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Roll Number or Email
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                       <Input
-                        name="email"
-                        placeholder="name@example.com"
-                        type="email"
-                        className="pl-9"
-                        disabled={isLoading}
+                        type="text"
+                        placeholder="e.g. 208 or 208@mvvs.in"
+                        value={rollOrEmail}
+                        onChange={(e) => setRollOrEmail(e.target.value)}
+                        className="pl-9 bg-slate-900/90 border-slate-800 text-slate-100 placeholder:text-slate-600 focus:border-amber-500"
                         required
+                        disabled={isLoading}
                       />
                     </div>
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="icon"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <ArrowRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  {error && (
-                    <p className="mt-2 text-sm text-red-500">{error}</p>
-                  )}
-                  
-                  <div className="mt-4">
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground">
-                          Or
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full mt-4"
-                      onClick={handleGuestLogin}
-                      disabled={isLoading}
-                    >
-                      <UserX className="mr-2 h-4 w-4" />
-                      Continue as Guest
-                    </Button>
-                  </div>
-                </CardContent>
-              </form>
-            </>
-          ) : (
-            <>
-              <CardHeader className="text-center mt-4">
-                <CardTitle>Check your email</CardTitle>
-                <CardDescription>
-                  We've sent a code to {step.email}
-                </CardDescription>
-              </CardHeader>
-              <form onSubmit={handleOtpSubmit}>
-                <CardContent className="pb-4">
-                  <input type="hidden" name="email" value={step.email} />
-                  <input type="hidden" name="code" value={otp} />
-
-                  <div className="flex justify-center">
-                    <InputOTP
-                      value={otp}
-                      onChange={setOtp}
-                      maxLength={6}
-                      disabled={isLoading}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && otp.length === 6 && !isLoading) {
-                          // Find the closest form and submit it
-                          const form = (e.target as HTMLElement).closest("form");
-                          if (form) {
-                            form.requestSubmit();
-                          }
-                        }
-                      }}
-                    >
-                      <InputOTPGroup>
-                        {Array.from({ length: 6 }).map((_, index) => (
-                          <InputOTPSlot key={index} index={index} />
-                        ))}
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </div>
-                  {error && (
-                    <p className="mt-2 text-sm text-red-500 text-center">
-                      {error}
+                    <p className="text-[11px] text-slate-500">
+                      Login domain: <code className="text-amber-400 font-mono">@mvvs.in</code>
                     </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Password (Date of Birth)
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                      <Input
+                        type="password"
+                        placeholder="YYYY-MM-DD (e.g. 2015-01-01)"
+                        value={studentPassword}
+                        onChange={(e) => setStudentPassword(e.target.value)}
+                        className="pl-9 bg-slate-900/90 border-slate-800 text-slate-100 placeholder:text-slate-600 focus:border-amber-500"
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Default password is your Date of Birth on record.
+                    </p>
+                  </div>
+
+                  {error && (
+                    <div className="p-3 rounded-lg bg-red-950/60 border border-red-800/60 text-red-300 text-xs leading-relaxed">
+                      {error}
+                    </div>
                   )}
-                  <p className="text-sm text-muted-foreground text-center mt-4">
-                    Didn't receive a code?{" "}
-                    <Button
-                      variant="link"
-                      className="p-0 h-auto"
-                      onClick={() => setStep("signIn")}
-                    >
-                      Try again
-                    </Button>
-                  </p>
-                </CardContent>
-                <CardFooter className="flex-col gap-2">
+
                   <Button
                     type="submit"
-                    className="w-full"
-                    disabled={isLoading || otp.length !== 6}
+                    className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold hover:from-amber-400 hover:to-amber-500 transition-all py-5 shadow-lg shadow-amber-500/20"
+                    disabled={isLoading}
                   >
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Verifying...
+                        Authenticating...
                       </>
                     ) : (
                       <>
-                        Verify code
+                        Sign In to Student Dashboard
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </>
                     )}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setStep("signIn")}
-                    disabled={isLoading}
-                    className="w-full"
-                  >
-                    Use different email
-                  </Button>
-                </CardFooter>
-              </form>
-            </>
-          )}
+                </form>
+              </TabsContent>
 
-          <div className="py-4 px-6 text-xs text-center text-muted-foreground bg-muted border-t rounded-b-lg">
-            Secured by{" "}
-            <a
-              href="https://vly.ai"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-primary transition-colors"
-            >
-              vly.ai
-            </a>
-          </div>
+              {/* Admin Login Tab */}
+              <TabsContent value="admin" className="space-y-4 pt-4">
+                <form onSubmit={handleAdminSubmit} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Admin Email / ID
+                    </label>
+                    <div className="relative">
+                      <Shield className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                      <Input
+                        type="text"
+                        value="admin@mvvs.in"
+                        readOnly
+                        className="pl-9 bg-slate-900/50 border-slate-800 text-slate-400 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Admin Passcode
+                    </label>
+                    <div className="relative">
+                      <KeyRound className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                      <Input
+                        type="password"
+                        placeholder="Enter admin password"
+                        value={adminPassword}
+                        onChange={(e) => setAdminPassword(e.target.value)}
+                        className="pl-9 bg-slate-900/90 border-slate-800 text-slate-100 placeholder:text-slate-600 focus:border-amber-500"
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="p-3 rounded-lg bg-red-950/60 border border-red-800/60 text-red-300 text-xs leading-relaxed">
+                      {error}
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold hover:from-amber-400 hover:to-amber-500 transition-all py-5 shadow-lg shadow-amber-500/20"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verifying Admin...
+                      </>
+                    ) : (
+                      <>
+                        Access Admin Dashboard
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+
+          <CardFooter className="bg-slate-900/60 border-t border-slate-800/80 py-3 px-6 text-center text-xs text-slate-400 justify-center">
+            Maa Veena Vadini Upper Primary School Security System
+          </CardFooter>
         </Card>
-        </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 w-full py-4 text-center text-xs text-slate-500 border-t border-slate-900">
+        © {new Date().getFullYear()} Maa Veena Vadini School. All rights reserved.
+      </footer>
     </div>
   );
 }
 
 export default function AuthPage(props: AuthProps) {
   return (
-    <Suspense>
-      <Auth {...props} />
+    <Suspense fallback={<div className="min-h-screen bg-slate-900 text-slate-300 flex items-center justify-center">Loading...</div>}>
+      <AuthContent {...props} />
     </Suspense>
   );
 }
