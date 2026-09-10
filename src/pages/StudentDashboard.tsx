@@ -656,6 +656,52 @@ export default function StudentDashboard() {
                     />
                   </div>
                 </div>
+
+                {/* Date-by-Date Daily Attendance Log */}
+                <div className="space-y-3 pt-2">
+                  <h4 className="font-bold text-sm text-[#0a2540]">Daily Attendance Log</h4>
+                  {attendance && attendance.length > 0 ? (
+                    <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                          <tr>
+                            <th className="p-3">Date</th>
+                            <th className="p-3">Status</th>
+                            <th className="p-3">Remarks / Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {attendance.map((att: any) => (
+                            <tr key={att._id} className="hover:bg-slate-50/80">
+                              <td className="p-3 font-mono font-medium text-slate-900">{att.date}</td>
+                              <td className="p-3">
+                                <Badge
+                                  className={
+                                    att.status === "present"
+                                      ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold capitalize"
+                                      : att.status === "absent"
+                                      ? "bg-red-100 text-red-800 border-red-300 font-bold capitalize"
+                                      : "bg-amber-100 text-amber-800 border-amber-300 font-bold capitalize"
+                                  }
+                                >
+                                  {att.status}
+                                </Badge>
+                              </td>
+                              <td className="p-3 text-slate-600">
+                                {att.remarks ? att.remarks : <span className="text-slate-400">—</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center bg-slate-50 rounded-xl border border-slate-200 text-slate-500">
+                      <CalendarIcon className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+                      <p className="text-sm">No daily attendance entries recorded yet.</p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -674,18 +720,43 @@ export default function StudentDashboard() {
               </CardHeader>
               <CardContent className="pt-6">
                 {achievements && achievements.length > 0 ? (
-                  <div className="space-y-4">
-                    {achievements.map((ach: any) => (
-                      <div key={ach._id} className="p-5 rounded-xl bg-white border border-amber-200 space-y-2 shadow-sm">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-bold text-base text-[#0a2540]">{ach.title}</h4>
-                          <Badge variant="outline" className="border-amber-300 text-amber-800 bg-amber-50 text-xs">
-                            {ach.date}
-                          </Badge>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {achievements.map((ach: any) => {
+                      const img = ach.certificateUrl || ach.imageUrl;
+                      return (
+                        <div key={ach._id} className="p-5 rounded-xl bg-white border border-amber-200 space-y-3 shadow-sm flex flex-col justify-between">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-start gap-2">
+                              <h4 className="font-bold text-base text-[#0a2540]">{ach.title}</h4>
+                              <Badge variant="outline" className="border-amber-300 text-amber-800 bg-amber-50 text-xs shrink-0">
+                                {ach.date}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-slate-600 leading-relaxed">{ach.description}</p>
+                          </div>
+                          {img && (
+                            <div className="pt-2 border-t border-slate-100">
+                              {img.match(/\.(jpeg|jpg|gif|png|webp)/i) || img.startsWith("data:image") ? (
+                                <img
+                                  src={img}
+                                  alt={ach.title}
+                                  className="w-full h-36 object-cover rounded-lg border border-slate-200"
+                                />
+                              ) : (
+                                <a
+                                  href={img}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-amber-700 font-semibold underline flex items-center gap-1 hover:text-amber-800"
+                                >
+                                  View Attached Certificate / Document
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <p className="text-sm text-slate-600 leading-relaxed">{ach.description}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-slate-500">

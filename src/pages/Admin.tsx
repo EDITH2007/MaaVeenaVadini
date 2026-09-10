@@ -59,7 +59,7 @@ import { useNavigate } from "react-router";
 
 const ADMIN_PASSWORD = "MVVS@som145";
 
-type Tab = "students" | "fees" | "provisioning" | "notices" | "calendar" | "requests";
+type Tab = "students" | "fees" | "attendance" | "achievements" | "provisioning" | "notices" | "calendar" | "requests";
 
 const CLASSES = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
 const CATEGORIES = ["General", "OBC", "SC", "ST"];
@@ -246,6 +246,139 @@ export default function Admin() {
   });
 
   const [deleteFeeId, setDeleteFeeId] = useState<Id<"fees"> | null>(null);
+
+  // Attendance State & Hooks
+  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [attendanceClass, setAttendanceClass] = useState("1st");
+  const attendanceForDate = useQuery(api.admin.getAttendanceForDate, { date: attendanceDate });
+  const saveClassAttendanceMutation = useMutation(api.admin.saveClassAttendance);
+
+  const [attendanceStatusMap, setAttendanceStatusMap] = useState<Record<string, { status: "present" | "absent" | "leave"; remarks: string }>>({});
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false);
+
+  const classStudents = (students || []).filter((s) => s.class === attendanceClass);
+
+  useEffect(() => {
+    if (!students) return;
+    const existingMap = new Map((attendanceForDate || []).map((a: any) => [a.studentId, a]));
+    const nextMap: Record<string, { status: "present" | "absent" | "leave"; remarks: string }> = {};
+    classStudents.forEach((s) => {
+      const rec = existingMap.get(s._id);
+      nextMap[s._id] = {
+        status: rec ? rec.status : "present",
+        remarks: rec?.remarks || "",
+      };
+    });
+    setAttendanceStatusMap(nextMap);
+  }, [attendanceDate, attendanceClass, attendanceForDate, students]);
+
+  const handleSaveClassAttendance = async () => {
+    if (classStudents.length === 0) {
+      toast.info("No students in selected class to record attendance for.");
+      return;
+    }
+    setIsSavingAttendance(true);
+    try {
+      const records = classStudents.map((s) => ({
+        studentId: s._id,
+        status: attendanceStatusMap[s._id]?.status || "present",
+        remarks: attendanceStatusMap[s._id]?.remarks || undefined,
+      }));
+      await saveClassAttendanceMutation({
+        date: attendanceDate,
+        records,
+      });
+      toast.success(`Attendance saved for Class ${attendanceClass} (${records.length} students).`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save attendance.");
+    } finally {
+      setIsSavingAttendance(false);
+    }
+  };
+
+  const handleMarkAllPresent = () => {
+    const nextMap = { ...attendanceStatusMap };
+    classStudents.forEach((s) => {
+      nextMap[s._id] = {
+        status: "present",
+        remarks: nextMap[s._id]?.remarks || "",
+      };
+    });
+    setAttendanceStatusMap(nextMap);
+    toast.info(`Marked all ${classStudents.length} students as Present in Class ${attendanceClass}.`);
+  };
+
+  // Achievements State & Hooks
+  const [achievementClassFilter, setAchievementClassFilter] = useState("all");
+  const allAchievements = useQuery(api.admin.listAllAchievements, { classFilter: achievementClassFilter });
+  const addAchievementMutation = useMutation(api.admin.addAchievement);
+  const updateAchievementMutation = useMutation(api.admin.updateAchievement);
+  const removeAchievementMutation = useMutation(api.admin.removeAchievement);
+
+  const [achievementModalOpen, setAchievementModalOpen] = useState(false);
+  const [editingAchievementId, setEditingAchievementId] = useState<Id<"achievements"> | null>(null);
+  const [achievementForm, setAchievementForm] = useState({
+    studentId: "",
+    title: "",
+    description: "",
+    date: new Date().toISOString().split("T")[0],
+    certificateUrl: "",
+  });
+  const [deleteAchievementId, setDeleteAchievementId] = useState<Id<"achievements"> | null>(null);
+
+  const handleSaveAchievement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!achievementForm.studentId || !achievementForm.title.trim() || !achievementForm.description.trim()) {
+      toast.error("Please fill in all required fields (Student, Title, Description).");
+      return;
+    }
+    try {
+      if (editingAchievementId) {
+        await updateAchievementMutation({
+          id: editingAchievementId,
+          studentId: achievementForm.studentId as Id<"students">,
+          title: achievementForm.title.trim(),
+          description: achievementForm.description.trim(),
+          date: achievementForm.date,
+          certificateUrl: achievementForm.certificateUrl.trim() || undefined,
+          imageUrl: achievementForm.certificateUrl.trim() || undefined,
+        });
+        toast.success("Achievement updated successfully.");
+      } else {
+        await addAchievementMutation({
+          studentId: achievementForm.studentId as Id<"students">,
+          title: achievementForm.title.trim(),
+          description: achievementForm.description.trim(),
+          date: achievementForm.date,
+          certificateUrl: achievementForm.certificateUrl.trim() || undefined,
+          imageUrl: achievementForm.certificateUrl.trim() || undefined,
+        });
+        toast.success("Achievement recorded successfully.");
+      }
+      setAchievementModalOpen(false);
+      setEditingAchievementId(null);
+      setAchievementForm({
+        studentId: "",
+        title: "",
+        description: "",
+        date: new Date().toISOString().split("T")[0],
+        certificateUrl: "",
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save achievement.");
+    }
+  };
+
+  const handleDeleteAchievement = async () => {
+    if (!deleteAchievementId) return;
+    try {
+      await removeAchievementMutation({ id: deleteAchievementId });
+      toast.success("Achievement removed.");
+      setDeleteAchievementId(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete achievement.");
+    }
+  };
 
   // Auto provision state
   const [isProvisioning, setIsProvisioning] = useState(false);
@@ -562,7 +695,7 @@ export default function Admin() {
 
         {/* Main Tabbed Management */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)} className="space-y-6">
-          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl grid grid-cols-3 sm:grid-cols-6 gap-1 shadow-sm">
+          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1 shadow-sm">
             <TabsTrigger value="students" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <Users className="w-4 h-4 mr-1.5 hidden sm:inline" />
               Students Table
@@ -570,6 +703,14 @@ export default function Admin() {
             <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <CreditCard className="w-4 h-4 mr-1.5 hidden sm:inline" />
               Fees Status
+            </TabsTrigger>
+            <TabsTrigger value="attendance" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
+              <CalendarIcon className="w-4 h-4 mr-1.5 hidden sm:inline" />
+              Attendance
+            </TabsTrigger>
+            <TabsTrigger value="achievements" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
+              <Award className="w-4 h-4 mr-1.5 hidden sm:inline" />
+              Achievements
             </TabsTrigger>
             <TabsTrigger value="provisioning" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <KeyRound className="w-4 h-4 mr-1.5 hidden sm:inline" />
@@ -580,7 +721,7 @@ export default function Admin() {
               Notices Board
             </TabsTrigger>
             <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <CalendarIcon className="w-4 h-4 mr-1.5 hidden sm:inline" />
+              <Clock className="w-4 h-4 mr-1.5 hidden sm:inline" />
               Calendar
             </TabsTrigger>
             <TabsTrigger value="requests" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
@@ -837,7 +978,319 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          {/* TAB 3: ACCOUNT PROVISIONING */}
+          {/* TAB 3: ATTENDANCE MANAGEMENT */}
+          <TabsContent value="attendance" className="space-y-4">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <CardTitle className="text-lg text-[#0a2540] flex items-center gap-2">
+                    <CalendarIcon className="w-5 h-5 text-amber-600" />
+                    Daily Class Attendance Register
+                  </CardTitle>
+                  <CardDescription className="text-slate-500 text-xs">
+                    Mark and save daily attendance for any class on any chosen date.
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleMarkAllPresent}
+                    className="border-slate-300 text-slate-700 hover:bg-slate-100 text-xs"
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600" /> Mark All Present
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveClassAttendance}
+                    disabled={isSavingAttendance}
+                    className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600 text-xs shadow-sm"
+                  >
+                    {isSavingAttendance ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" /> Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-1.5" /> Save Attendance
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                {/* Date & Class Selectors + Class Stats */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 uppercase">Select Date</label>
+                      <Input
+                        type="date"
+                        value={attendanceDate}
+                        onChange={(e) => setAttendanceDate(e.target.value)}
+                        className="bg-white border-slate-300 text-slate-900 text-xs font-medium w-40"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 uppercase">Select Class</label>
+                      <select
+                        value={attendanceClass}
+                        onChange={(e) => setAttendanceClass(e.target.value)}
+                        className="h-9 w-36 bg-white border border-slate-300 rounded-md px-3 text-xs font-medium text-slate-900 focus:ring-amber-500"
+                      >
+                        {CLASSES.map((c) => (
+                          <option key={c} value={c}>Class {c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Stats Badges */}
+                  <div className="flex items-center gap-3">
+                    <div className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-center">
+                      <span className="text-[10px] text-slate-500 block">Class Strength</span>
+                      <span className="text-sm font-bold text-slate-900">{classStudents.length}</span>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-center">
+                      <span className="text-[10px] text-emerald-700 block">Present</span>
+                      <span className="text-sm font-bold text-emerald-700">
+                        {classStudents.filter((s) => (attendanceStatusMap[s._id]?.status || "present") === "present").length}
+                      </span>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-center">
+                      <span className="text-[10px] text-red-700 block">Absent</span>
+                      <span className="text-sm font-bold text-red-700">
+                        {classStudents.filter((s) => attendanceStatusMap[s._id]?.status === "absent").length}
+                      </span>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-center">
+                      <span className="text-[10px] text-amber-800 block">Leave</span>
+                      <span className="text-sm font-bold text-amber-800">
+                        {classStudents.filter((s) => attendanceStatusMap[s._id]?.status === "leave").length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Class Student Attendance Table */}
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">Roll No</th>
+                        <th className="p-3">Student Name</th>
+                        <th className="p-3">Class</th>
+                        <th className="p-3">Attendance Status</th>
+                        <th className="p-3">Remarks / Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {classStudents.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="p-8 text-center text-slate-500">
+                            No students registered in Class {attendanceClass}.
+                          </td>
+                        </tr>
+                      ) : (
+                        classStudents.map((st) => {
+                          const currentVal = attendanceStatusMap[st._id] || { status: "present", remarks: "" };
+                          return (
+                            <tr key={st._id} className="hover:bg-slate-50/80">
+                              <td className="p-3 font-mono font-bold text-amber-700">{st.rollNumber}</td>
+                              <td className="p-3 font-semibold text-slate-900">{st.name}</td>
+                              <td className="p-3 text-slate-600">Class {st.class || attendanceClass}</td>
+                              <td className="p-3">
+                                <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAttendanceStatusMap((prev) => ({
+                                        ...prev,
+                                        [st._id]: { ...prev[st._id], status: "present" },
+                                      }))
+                                    }
+                                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                                      currentVal.status === "present"
+                                        ? "bg-emerald-600 text-white shadow-sm"
+                                        : "text-slate-600 hover:text-emerald-700"
+                                    }`}
+                                  >
+                                    Present
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAttendanceStatusMap((prev) => ({
+                                        ...prev,
+                                        [st._id]: { ...prev[st._id], status: "absent" },
+                                      }))
+                                    }
+                                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                                      currentVal.status === "absent"
+                                        ? "bg-red-600 text-white shadow-sm"
+                                        : "text-slate-600 hover:text-red-700"
+                                    }`}
+                                  >
+                                    Absent
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAttendanceStatusMap((prev) => ({
+                                        ...prev,
+                                        [st._id]: { ...prev[st._id], status: "leave" },
+                                      }))
+                                    }
+                                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                                      currentVal.status === "leave"
+                                        ? "bg-amber-600 text-white shadow-sm"
+                                        : "text-slate-600 hover:text-amber-700"
+                                    }`}
+                                  >
+                                    Leave
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <Input
+                                  type="text"
+                                  placeholder="e.g. Sick leave, Late arrival..."
+                                  value={currentVal.remarks}
+                                  onChange={(e) =>
+                                    setAttendanceStatusMap((prev) => ({
+                                      ...prev,
+                                      [st._id]: { ...prev[st._id], remarks: e.target.value },
+                                    }))
+                                  }
+                                  className="h-8 text-xs bg-white border-slate-300 max-w-xs"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 4: ACHIEVEMENTS MANAGEMENT */}
+          <TabsContent value="achievements" className="space-y-4">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <CardTitle className="text-lg text-[#0a2540] flex items-center gap-2">
+                    <Award className="w-5 h-5 text-amber-600" />
+                    Student Achievements & Recognitions
+                  </CardTitle>
+                  <CardDescription className="text-slate-500 text-xs">
+                    Log and publish student milestones, sports awards, and academic honors.
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={achievementClassFilter}
+                    onChange={(e) => setAchievementClassFilter(e.target.value)}
+                    className="h-9 bg-white border border-slate-300 rounded-md px-3 text-xs font-medium text-slate-900 focus:ring-amber-500"
+                  >
+                    <option value="all">All Classes</option>
+                    {CLASSES.map((c) => (
+                      <option key={c} value={c}>Class {c}</option>
+                    ))}
+                  </select>
+                  <Button
+                    onClick={() => {
+                      setEditingAchievementId(null);
+                      setAchievementForm({
+                        studentId: students && students.length > 0 ? students[0]._id : "",
+                        title: "",
+                        description: "",
+                        date: new Date().toISOString().split("T")[0],
+                        certificateUrl: "",
+                      });
+                      setAchievementModalOpen(true);
+                    }}
+                    className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600 text-xs shadow-sm"
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" /> Add Achievement
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">Student Name</th>
+                        <th className="p-3">Roll / Class</th>
+                        <th className="p-3">Achievement Title</th>
+                        <th className="p-3">Date</th>
+                        <th className="p-3">Description</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(allAchievements || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-slate-500">
+                            No achievements logged yet. Click "Add Achievement" to log a student award.
+                          </td>
+                        </tr>
+                      ) : (
+                        (allAchievements || []).map((ach: any) => (
+                          <tr key={ach._id} className="hover:bg-slate-50/80">
+                            <td className="p-3 font-semibold text-slate-900">{ach.studentName}</td>
+                            <td className="p-3 text-slate-600">
+                              <span className="font-mono text-amber-700 font-bold">{ach.rollNumber}</span> • Class {ach.class}
+                            </td>
+                            <td className="p-3 font-bold text-[#0a2540]">{ach.title}</td>
+                            <td className="p-3 text-slate-500">{ach.date}</td>
+                            <td className="p-3 text-slate-600 max-w-xs truncate">{ach.description}</td>
+                            <td className="p-3 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setEditingAchievementId(ach._id);
+                                    setAchievementForm({
+                                      studentId: ach.studentId,
+                                      title: ach.title,
+                                      description: ach.description,
+                                      date: ach.date,
+                                      certificateUrl: ach.certificateUrl || ach.imageUrl || "",
+                                    });
+                                    setAchievementModalOpen(true);
+                                  }}
+                                  className="h-8 w-8 p-0 text-slate-600 hover:text-amber-600 hover:bg-amber-50"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setDeleteAchievementId(ach._id)}
+                                  className="h-8 w-8 p-0 text-slate-600 hover:text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 5: ACCOUNT PROVISIONING */}
           <TabsContent value="provisioning" className="space-y-4">
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardHeader>
@@ -1629,26 +2082,106 @@ export default function Admin() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={Boolean(deleteFeeId)} onOpenChange={() => setDeleteFeeId(null)}>
+      {/* DIALOG 6: ADD/EDIT ACHIEVEMENT */}
+      <Dialog open={achievementModalOpen} onOpenChange={setAchievementModalOpen}>
+        <DialogContent className="max-w-lg bg-white border-slate-200 text-slate-900">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-[#0a2540] flex items-center gap-2">
+              <Award className="w-5 h-5 text-amber-600" />
+              {editingAchievementId ? "Edit Student Achievement" : "Add Student Achievement"}
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              Record academic, sports, or extracurricular milestone for a student.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveAchievement} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Select Student *</label>
+              <select
+                required
+                value={achievementForm.studentId}
+                onChange={(e) => setAchievementForm({ ...achievementForm, studentId: e.target.value })}
+                className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm text-slate-900 focus:ring-amber-500"
+              >
+                <option value="">-- Choose Student --</option>
+                {(students || []).map((s) => (
+                  <option key={s._id} value={s._id}>
+                    Roll {s.rollNumber} - {s.name} (Class {s.class})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Achievement Title *</label>
+                <Input
+                  required
+                  placeholder="e.g. 1st Rank in Science Fair"
+                  value={achievementForm.title}
+                  onChange={(e) => setAchievementForm({ ...achievementForm, title: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Date *</label>
+                <Input
+                  type="date"
+                  required
+                  value={achievementForm.date}
+                  onChange={(e) => setAchievementForm({ ...achievementForm, date: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Description *</label>
+              <Textarea
+                required
+                rows={3}
+                placeholder="Describe the milestone, competition details, or award highlights..."
+                value={achievementForm.description}
+                onChange={(e) => setAchievementForm({ ...achievementForm, description: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Certificate / Image URL (Optional)</label>
+              <Input
+                type="text"
+                placeholder="https://... (Image or Certificate Link)"
+                value={achievementForm.certificateUrl}
+                onChange={(e) => setAchievementForm({ ...achievementForm, certificateUrl: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900"
+              />
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-slate-100">
+              <Button type="button" variant="outline" onClick={() => setAchievementModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600">
+                {editingAchievementId ? "Update Achievement" : "Save Achievement"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(deleteAchievementId)} onOpenChange={() => setDeleteAchievementId(null)}>
         <AlertDialogContent className="bg-white border-slate-200 text-slate-900">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Fee Installment Record?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-500">
-              This will remove this fee assignment record permanently.
+            <AlertDialogTitle className="text-red-600">Delete Achievement?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600 text-xs">
+              Are you sure you want to permanently remove this achievement record? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (deleteFeeId) {
-                  await removeFeeMutation({ id: deleteFeeId });
-                  toast.success("Fee record deleted.");
-                  setDeleteFeeId(null);
-                }
-              }}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
+            <AlertDialogAction onClick={handleDeleteAchievement} className="bg-red-600 text-white hover:bg-red-700">
               Delete Record
             </AlertDialogAction>
           </AlertDialogFooter>

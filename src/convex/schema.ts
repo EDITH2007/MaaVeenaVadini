@@ -87,6 +87,7 @@ const schema = defineSchema(
       description: v.string(),
       date: v.string(),
       certificateUrl: v.optional(v.string()),
+      imageUrl: v.optional(v.string()),
     }).index("by_student", ["studentId"]),
 
     fees: defineTable({
@@ -108,6 +109,7 @@ const schema = defineSchema(
       remarks: v.optional(v.string()),
     })
       .index("by_student", ["studentId"])
+      .index("by_date", ["date"])
       .index("by_student_and_date", ["studentId", "date"]),
 
     calendar_events: defineTable({

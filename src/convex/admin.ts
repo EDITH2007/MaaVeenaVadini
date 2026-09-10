@@ -153,6 +153,30 @@ export const listStudentAchievements = query({
   },
 });
 
+export const listAllAchievements = query({
+  args: { classFilter: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const achievements = await ctx.db.query("achievements").take(500);
+    const students = await ctx.db.query("students").take(500);
+    const studentMap = new Map(students.map((s) => [s._id, s]));
+
+    const combined = achievements.map((ach) => {
+      const s = studentMap.get(ach.studentId);
+      return {
+        ...ach,
+        studentName: s?.name || "Unknown Student",
+        rollNumber: s?.rollNumber || "N/A",
+        class: s?.class || "N/A",
+      };
+    });
+
+    if (args.classFilter && args.classFilter !== "all") {
+      return combined.filter((ach) => ach.class === args.classFilter);
+    }
+    return combined;
+  },
+});
+
 export const addAchievement = mutation({
   args: {
     studentId: v.id("students"),
@@ -160,10 +184,28 @@ export const addAchievement = mutation({
     description: v.string(),
     date: v.string(),
     certificateUrl: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await checkAdmin(ctx);
     return await ctx.db.insert("achievements", args);
+  },
+});
+
+export const updateAchievement = mutation({
+  args: {
+    id: v.id("achievements"),
+    studentId: v.id("students"),
+    title: v.string(),
+    description: v.string(),
+    date: v.string(),
+    certificateUrl: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await checkAdmin(ctx);
+    const { id, ...rest } = args;
+    await ctx.db.patch(id, rest);
   },
 });
 
@@ -350,6 +392,16 @@ export const listStudentAttendance = query({
   },
 });
 
+export const getAttendanceForDate = query({
+  args: { date: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("attendance")
+      .withIndex("by_date", (q) => q.eq("date", args.date))
+      .take(500);
+  },
+});
+
 export const recordAttendance = mutation({
   args: {
     studentId: v.id("students"),
@@ -374,6 +426,47 @@ export const recordAttendance = mutation({
       return existing._id;
     }
     return await ctx.db.insert("attendance", args);
+  },
+});
+
+export const saveClassAttendance = mutation({
+  args: {
+    date: v.string(),
+    records: v.array(
+      v.object({
+        studentId: v.id("students"),
+        status: v.union(v.literal("present"), v.literal("absent"), v.literal("leave")),
+        remarks: v.optional(v.string()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    await checkAdmin(ctx);
+    let count = 0;
+    for (const rec of args.records) {
+      const existing = await ctx.db
+        .query("attendance")
+        .withIndex("by_student_and_date", (q) =>
+          q.eq("studentId", rec.studentId).eq("date", args.date)
+        )
+        .unique();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, {
+          status: rec.status,
+          remarks: rec.remarks,
+        });
+      } else {
+        await ctx.db.insert("attendance", {
+          studentId: rec.studentId,
+          date: args.date,
+          status: rec.status,
+          remarks: rec.remarks,
+        });
+      }
+      count++;
+    }
+    return { count };
   },
 });
 

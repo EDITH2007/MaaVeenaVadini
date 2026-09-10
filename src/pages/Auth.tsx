@@ -128,50 +128,47 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between relative overflow-hidden">
-      {/* Background Glow Overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#0a2540_0%,#020617_100%)] z-0" />
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-
-      {/* Header */}
-      <header className="relative z-10 w-full p-6 flex justify-between items-center max-w-6xl mx-auto">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
-          <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center p-2 shadow-lg shadow-amber-500/10">
-            <GraduationCap className="w-7 h-7 text-amber-400" />
+    <div className="min-h-screen bg-[#f5f7fa] text-slate-900 flex flex-col justify-between font-sans">
+      {/* Header - Navy Navbar matching Public Site & Dashboards */}
+      <header className="bg-[#0a2540] text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
+            <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center p-2">
+              <GraduationCap className="w-6 h-6 text-amber-400" />
+            </div>
+            <div>
+              <h1 className="font-bold text-white text-base leading-tight">
+                Maa Veena Vadini Upper Primary School
+              </h1>
+              <p className="text-xs text-slate-300">Est. 2011 • Student & Admin Portal</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-lg leading-tight tracking-wide text-amber-300">
-              Maa Veena Vadini
-            </h1>
-            <p className="text-xs text-slate-400">Upper Primary School • Est. 2011</p>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/")}
+            className="border-white/20 text-white hover:bg-white/10"
+          >
+            Back to Home
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate("/")}
-          className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
-        >
-          Back to Home
-        </Button>
       </header>
 
       {/* Auth Card Container */}
-      <main className="relative z-10 flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-slate-950/80 border-slate-800 backdrop-blur-xl shadow-2xl text-slate-100 overflow-hidden">
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 my-6">
+        <Card className="w-full max-w-md bg-white border border-slate-200 shadow-xl rounded-2xl text-slate-900 overflow-hidden">
           <CardHeader className="text-center pb-4 pt-6">
-            <div className="mx-auto w-14 h-14 rounded-full bg-slate-900 border border-amber-500/30 flex items-center justify-center mb-3 text-amber-400 shadow-inner">
+            <div className="mx-auto w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-3 text-amber-600 shadow-sm">
               {activeTab === "student" ? (
                 <GraduationCap className="w-7 h-7" />
               ) : (
                 <Shield className="w-7 h-7" />
               )}
             </div>
-            <CardTitle className="text-2xl font-bold text-slate-50">
+            <CardTitle className="text-2xl font-bold text-[#0a2540]">
               {activeTab === "student" ? "Student Portal Login" : "Admin Dashboard Access"}
             </CardTitle>
-            <CardDescription className="text-slate-400 text-sm mt-1">
+            <CardDescription className="text-slate-500 text-sm mt-1">
               {activeTab === "student"
                 ? "Enter your Roll Number and Date of Birth to view profile & results"
                 : "Sign in with administrator credentials to manage school portal"}
@@ -187,17 +184,17 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
               }}
               className="w-full"
             >
-              <TabsList className="grid grid-cols-2 bg-slate-900 p-1 border border-slate-800 rounded-lg">
+              <TabsList className="grid grid-cols-2 bg-slate-100 p-1 border border-slate-200 rounded-xl">
                 <TabsTrigger
                   value="student"
-                  className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-medium text-sm transition-all"
+                  className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-bold text-sm transition-all text-slate-600"
                 >
                   <GraduationCap className="w-4 h-4 mr-2" />
                   Student
                 </TabsTrigger>
                 <TabsTrigger
                   value="admin"
-                  className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-medium text-sm transition-all"
+                  className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-bold text-sm transition-all text-slate-600"
                 >
                   <Shield className="w-4 h-4 mr-2" />
                   Admin
@@ -208,38 +205,38 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
               <TabsContent value="student" className="space-y-4 pt-4">
                 <form onSubmit={handleStudentSubmit} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                       Roll Number or Email
                     </label>
                     <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                      <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                       <Input
                         type="text"
                         placeholder="e.g. 208 or 208@mvvs.in"
                         value={rollOrEmail}
                         onChange={(e) => setRollOrEmail(e.target.value)}
-                        className="pl-9 bg-slate-900/90 border-slate-800 text-slate-100 placeholder:text-slate-600 focus:border-amber-500"
+                        className="pl-9 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-amber-500"
                         required
                         disabled={isLoading}
                       />
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      Login domain: <code className="text-amber-400 font-mono">@mvvs.in</code>
+                      Login domain: <code className="text-amber-700 font-mono font-semibold">@mvvs.in</code>
                     </p>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                       Password (Date of Birth)
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                       <Input
                         type="password"
                         placeholder="YYYY-MM-DD (e.g. 2015-01-01)"
                         value={studentPassword}
                         onChange={(e) => setStudentPassword(e.target.value)}
-                        className="pl-9 bg-slate-900/90 border-slate-800 text-slate-100 placeholder:text-slate-600 focus:border-amber-500"
+                        className="pl-9 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-amber-500"
                         required
                         disabled={isLoading}
                       />
@@ -250,14 +247,14 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
                   </div>
 
                   {error && (
-                    <div className="p-3 rounded-lg bg-red-950/60 border border-red-800/60 text-red-300 text-xs leading-relaxed">
+                    <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs leading-relaxed">
                       {error}
                     </div>
                   )}
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold hover:from-amber-400 hover:to-amber-500 transition-all py-5 shadow-lg shadow-amber-500/20"
+                    className="w-full bg-amber-500 text-slate-950 font-bold hover:bg-amber-600 transition-all py-5 shadow-md shadow-amber-500/20"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -279,32 +276,32 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
               <TabsContent value="admin" className="space-y-4 pt-4">
                 <form onSubmit={handleAdminSubmit} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                       Admin Email / ID
                     </label>
                     <div className="relative">
-                      <Shield className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                      <Shield className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                       <Input
                         type="text"
                         value="admin@mvvs.in"
                         readOnly
-                        className="pl-9 bg-slate-900/50 border-slate-800 text-slate-400 cursor-not-allowed"
+                        className="pl-9 bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                       Admin Passcode
                     </label>
                     <div className="relative">
-                      <KeyRound className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                      <KeyRound className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                       <Input
                         type="password"
                         placeholder="Enter admin password"
                         value={adminPassword}
                         onChange={(e) => setAdminPassword(e.target.value)}
-                        className="pl-9 bg-slate-900/90 border-slate-800 text-slate-100 placeholder:text-slate-600 focus:border-amber-500"
+                        className="pl-9 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-amber-500"
                         required
                         disabled={isLoading}
                       />
@@ -312,14 +309,14 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
                   </div>
 
                   {error && (
-                    <div className="p-3 rounded-lg bg-red-950/60 border border-red-800/60 text-red-300 text-xs leading-relaxed">
+                    <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs leading-relaxed">
                       {error}
                     </div>
                   )}
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold hover:from-amber-400 hover:to-amber-500 transition-all py-5 shadow-lg shadow-amber-500/20"
+                    className="w-full bg-amber-500 text-slate-950 font-bold hover:bg-amber-600 transition-all py-5 shadow-md shadow-amber-500/20"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -339,14 +336,14 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
             </Tabs>
           </CardContent>
 
-          <CardFooter className="bg-slate-900/60 border-t border-slate-800/80 py-3 px-6 text-center text-xs text-slate-400 justify-center">
+          <CardFooter className="bg-slate-50 border-t border-slate-100 py-3 px-6 text-center text-xs text-slate-500 justify-center">
             Maa Veena Vadini Upper Primary School Security System
           </CardFooter>
         </Card>
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 w-full py-4 text-center text-xs text-slate-500 border-t border-slate-900">
+      <footer className="w-full py-4 text-center text-xs text-slate-500 border-t border-slate-200 bg-white">
         © {new Date().getFullYear()} Maa Veena Vadini School. All rights reserved.
       </footer>
     </div>
@@ -355,7 +352,7 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
 
 export default function AuthPage(props: AuthProps) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-900 text-slate-300 flex items-center justify-center">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#f5f7fa] text-slate-600 flex items-center justify-center">Loading...</div>}>
       <AuthContent {...props} />
     </Suspense>
   );
