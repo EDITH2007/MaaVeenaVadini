@@ -120,10 +120,10 @@ export default function StudentDashboard() {
             </div>
             <div className="flex gap-2">
               <Button
-                variant="outline"
+                variant="outlineWhite"
                 size="sm"
                 onClick={() => navigate("/")}
-                className="border-white/20 text-white hover:bg-white/10"
+                className="font-medium"
               >
                 <ArrowLeft className="w-4 h-4 mr-1" /> Home
               </Button>
@@ -245,13 +245,13 @@ export default function StudentDashboard() {
 
           <div className="flex items-center gap-3">
             <Button
-              variant="outline"
+              variant="outlineWhite"
               size="sm"
               onClick={() => {
                 signOut();
                 navigate("/");
               }}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="font-medium"
             >
               <LogOut className="w-4 h-4 mr-1.5" /> Sign Out
             </Button>

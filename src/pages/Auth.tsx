@@ -144,10 +144,10 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
             </div>
           </div>
           <Button
-            variant="outline"
+            variant="outlineWhite"
             size="sm"
             onClick={() => navigate("/")}
-            className="border-white/20 text-white hover:bg-white/10"
+            className="font-medium"
           >
             Back to Home
           </Button>

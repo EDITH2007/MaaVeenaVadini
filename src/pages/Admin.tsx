@@ -631,10 +631,10 @@ export default function Admin() {
             </div>
           </div>
           <Button
-            variant="outline"
+            variant="outlineWhite"
             size="sm"
             onClick={handleLogout}
-            className="border-white/20 text-white hover:bg-white/10 hover:text-white"
+            className="font-medium"
           >
             <LogOut className="w-4 h-4 mr-1.5" />
             Logout

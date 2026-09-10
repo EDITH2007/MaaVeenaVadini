@@ -306,8 +306,8 @@ export default function Landing() {
               </Button>
               <Button
                 size="lg"
-                variant="outline"
-                className="border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 text-base px-8"
+                variant="outlineWhite"
+                className="border-2 border-white/60 bg-white/10 backdrop-blur-xs text-white hover:bg-white hover:text-[#0a2540] text-base px-8 font-semibold shadow-md transition-all"
                 onClick={() => scrollTo("about")}
               >
                 Learn More
