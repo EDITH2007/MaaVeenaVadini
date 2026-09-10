@@ -96,6 +96,9 @@ const schema = defineSchema(
       paidAmount: v.number(),
       dueDate: v.string(),
       status: v.union(v.literal("paid"), v.literal("pending"), v.literal("overdue")),
+      paymentDate: v.optional(v.string()),
+      paymentMode: v.optional(v.string()),
+      remarks: v.optional(v.string()),
     }).index("by_student", ["studentId"]),
 
     attendance: defineTable({

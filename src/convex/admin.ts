@@ -189,6 +189,30 @@ export const listStudentFees = query({
   },
 });
 
+export const listAllFees = query({
+  args: { classFilter: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const fees = await ctx.db.query("fees").take(500);
+    const students = await ctx.db.query("students").take(500);
+    const studentMap = new Map(students.map((s) => [s._id, s]));
+
+    const combined = fees.map((fee) => {
+      const s = studentMap.get(fee.studentId);
+      return {
+        ...fee,
+        studentName: s?.name || "Unknown Student",
+        rollNumber: s?.rollNumber || "N/A",
+        class: s?.class || "N/A",
+      };
+    });
+
+    if (args.classFilter && args.classFilter !== "all") {
+      return combined.filter((f) => f.class === args.classFilter);
+    }
+    return combined;
+  },
+});
+
 export const addFee = mutation({
   args: {
     studentId: v.id("students"),
@@ -197,10 +221,91 @@ export const addFee = mutation({
     paidAmount: v.number(),
     dueDate: v.string(),
     status: v.union(v.literal("paid"), v.literal("pending"), v.literal("overdue")),
+    paymentDate: v.optional(v.string()),
+    paymentMode: v.optional(v.string()),
+    remarks: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await checkAdmin(ctx);
     return await ctx.db.insert("fees", args);
+  },
+});
+
+export const assignFeeStructure = mutation({
+  args: {
+    target: v.union(v.literal("all"), v.literal("class"), v.literal("student")),
+    targetClass: v.optional(v.string()),
+    studentId: v.optional(v.id("students")),
+    title: v.string(),
+    amount: v.number(),
+    dueDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await checkAdmin(ctx);
+    let targetStudents: Array<any> = [];
+    if (args.target === "student" && args.studentId) {
+      const s = await ctx.db.get(args.studentId);
+      if (s) targetStudents = [s];
+    } else if (args.target === "class" && args.targetClass) {
+      targetStudents = await ctx.db
+        .query("students")
+        .withIndex("by_class", (q) => q.eq("class", args.targetClass))
+        .take(500);
+    } else {
+      targetStudents = await ctx.db.query("students").take(500);
+    }
+
+    let createdCount = 0;
+    const now = new Date().toISOString().split("T")[0];
+    for (const student of targetStudents) {
+      const isPastDue = args.dueDate < now;
+      await ctx.db.insert("fees", {
+        studentId: student._id,
+        title: args.title.trim(),
+        amount: args.amount,
+        paidAmount: 0,
+        dueDate: args.dueDate,
+        status: isPastDue ? "overdue" : "pending",
+      });
+      createdCount++;
+    }
+    return { count: createdCount };
+  },
+});
+
+export const recordFeePayment = mutation({
+  args: {
+    id: v.id("fees"),
+    paidAmount: v.number(),
+    paymentDate: v.optional(v.string()),
+    paymentMode: v.optional(v.string()),
+    remarks: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await checkAdmin(ctx);
+    const fee = await ctx.db.get(args.id);
+    if (!fee) throw new Error("Fee record not found");
+
+    const newPaid = Math.min(fee.amount, Math.max(0, args.paidAmount));
+    let newStatus: "paid" | "pending" | "overdue" = "pending";
+    if (newPaid >= fee.amount) {
+      newStatus = "paid";
+    } else {
+      const today = new Date().toISOString().split("T")[0];
+      if (fee.dueDate < today) {
+        newStatus = "overdue";
+      } else {
+        newStatus = "pending";
+      }
+    }
+
+    await ctx.db.patch(args.id, {
+      paidAmount: newPaid,
+      status: newStatus,
+      paymentDate: args.paymentDate || new Date().toISOString().split("T")[0],
+      paymentMode: args.paymentMode,
+      remarks: args.remarks,
+    });
   },
 });
 
@@ -212,6 +317,9 @@ export const updateFee = mutation({
     paidAmount: v.number(),
     dueDate: v.string(),
     status: v.union(v.literal("paid"), v.literal("pending"), v.literal("overdue")),
+    paymentDate: v.optional(v.string()),
+    paymentMode: v.optional(v.string()),
+    remarks: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await checkAdmin(ctx);
@@ -301,6 +409,9 @@ export const getDashboardStats = query({
     const notices = await ctx.db.query("notices").take(100);
     const fees = await ctx.db.query("fees").take(500);
     const overdueFeesCount = fees.filter((f) => f.status === "overdue").length;
+    const totalAssignedFee = fees.reduce((acc, f) => acc + (f.amount || 0), 0);
+    const totalPaidFee = fees.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
+    const totalDueFee = Math.max(0, totalAssignedFee - totalPaidFee);
     const pendingRequests = await ctx.db
       .query("profile_change_requests")
       .withIndex("by_status", (q) => q.eq("status", "pending"))
@@ -313,6 +424,9 @@ export const getDashboardStats = query({
       totalNotices: notices.length,
       totalClasses: classesSet.size,
       overdueFeesCount,
+      totalAssignedFee,
+      totalPaidFee,
+      totalDueFee,
       pendingRequestsCount: pendingRequests.length,
     };
   },

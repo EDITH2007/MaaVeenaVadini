@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/collapsible";
 import {
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -73,6 +74,9 @@ function ErrorDialog({
       <DialogContent className="bg-red-700 text-white max-w-4xl">
         <DialogHeader>
           <DialogTitle>Runtime Error</DialogTitle>
+          <DialogDescription className="text-white/80 text-xs">
+            A runtime error occurred in the application.
+          </DialogDescription>
         </DialogHeader>
         A runtime error occurred. Open the vly editor to automatically debug the
         error.

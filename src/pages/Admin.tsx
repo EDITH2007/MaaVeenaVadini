@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -51,14 +52,17 @@ import {
   RefreshCw,
   KeyRound,
   FileText,
+  DollarSign,
+  Check,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 
 const ADMIN_PASSWORD = "MVVS@som145";
 
-type Tab = "students" | "notices" | "calendar" | "provisioning" | "requests";
+type Tab = "students" | "fees" | "provisioning" | "notices" | "calendar" | "requests";
 
 const CLASSES = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
+const CATEGORIES = ["General", "OBC", "SC", "ST"];
 
 const SUBJECTS = [
   { key: "hindi", label: "Hindi" },
@@ -194,6 +198,13 @@ export default function Admin() {
 
   const updateChangeRequestMutation = useMutation(api.admin.updateChangeRequestStatus);
 
+  // Fees queries & mutations
+  const [feeClassFilter, setFeeClassFilter] = useState("all");
+  const allFees = useQuery(api.admin.listAllFees, { classFilter: feeClassFilter });
+  const assignFeeMutation = useMutation(api.admin.assignFeeStructure);
+  const recordFeePaymentMutation = useMutation(api.admin.recordFeePayment);
+  const removeFeeMutation = useMutation(api.admin.removeFee);
+
   // Student CRUD state
   const [searchQuery, setSearchQuery] = useState("");
   const [classFilter, setClassFilter] = useState("all");
@@ -214,6 +225,28 @@ export default function Admin() {
   const [calendarForm, setCalendarForm] = useState<CalendarEventForm>(emptyCalendarEvent);
   const [deleteCalendarId, setDeleteCalendarId] = useState<Id<"calendar_events"> | null>(null);
 
+  // Fees modal state
+  const [feeModalOpen, setFeeModalOpen] = useState(false);
+  const [feeForm, setFeeForm] = useState({
+    target: "all" as "all" | "class" | "student",
+    targetClass: "1st",
+    studentId: "",
+    title: "Tuition Fee - Term 1",
+    amount: "1200",
+    dueDate: new Date().toISOString().split("T")[0],
+  });
+
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedFeeForPayment, setSelectedFeeForPayment] = useState<any>(null);
+  const [paymentForm, setPaymentForm] = useState({
+    paidAmount: "",
+    paymentDate: new Date().toISOString().split("T")[0],
+    paymentMode: "Cash",
+    remarks: "",
+  });
+
+  const [deleteFeeId, setDeleteFeeId] = useState<Id<"fees"> | null>(null);
+
   // Auto provision state
   const [isProvisioning, setIsProvisioning] = useState(false);
 
@@ -222,15 +255,78 @@ export default function Admin() {
     const matchesSearch =
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.rollNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (s.mobileNumber && s.mobileNumber.includes(searchQuery)) ||
+      (s.samagraId && s.samagraId.includes(searchQuery)) ||
+      (s.dkNumber && s.dkNumber.includes(searchQuery)) ||
       (s.aadharNumber && s.aadharNumber.includes(searchQuery));
     const matchesClass = classFilter === "all" || s.class === classFilter;
     return matchesSearch && matchesClass;
   });
 
+  // Open edit student
+  const handleOpenEditStudent = (s: any) => {
+    setEditingStudentId(s._id);
+
+    const hySub: SubjectMarks = { ...emptySubjects };
+    const fnSub: SubjectMarks = { ...emptySubjects };
+
+    if (s.subjects?.halfYearly) {
+      SUBJECTS.forEach((sub) => {
+        const val = s.subjects.halfYearly[sub.key];
+        if (val !== undefined) hySub[sub.key] = String(val);
+      });
+    }
+
+    if (s.subjects?.final) {
+      SUBJECTS.forEach((sub) => {
+        const val = s.subjects.final[sub.key];
+        if (val !== undefined) fnSub[sub.key] = String(val);
+      });
+    }
+
+    setStudentForm({
+      name: s.name || "",
+      rollNumber: s.rollNumber || "",
+      class: s.class || "1st",
+      dateOfBirth: s.dateOfBirth || "2015-01-01",
+      category: s.category || "General",
+      mobileNumber: s.mobileNumber || "",
+      samagraId: s.samagraId || "",
+      halfYearlyMarks: s.halfYearlyMarks !== undefined ? String(s.halfYearlyMarks) : "",
+      finalMarks: s.finalMarks !== undefined ? String(s.finalMarks) : "",
+      aadharNumber: s.aadharNumber || "",
+      dkNumber: s.dkNumber || "",
+      halfYearlySubjects: hySub,
+      finalSubjects: fnSub,
+    });
+    setStudentModalOpen(true);
+  };
+
   // Save Student (Add / Edit)
   const handleSaveStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const parseSubjectObject = (subObj: SubjectMarks) => {
+        const res: Record<string, number> = {};
+        for (const [k, v] of Object.entries(subObj)) {
+          if (v !== "" && v !== undefined && !isNaN(Number(v))) {
+            res[k] = Number(v);
+          }
+        }
+        return Object.keys(res).length > 0 ? res : undefined;
+      };
+
+      const hySub = parseSubjectObject(studentForm.halfYearlySubjects);
+      const fnSub = parseSubjectObject(studentForm.finalSubjects);
+
+      const hySum = hySub ? Object.values(hySub).reduce((a, b) => a + b, 0) : undefined;
+      const fnSum = fnSub ? Object.values(fnSub).reduce((a, b) => a + b, 0) : undefined;
+
+      const hyFinalMarks = hySum !== undefined ? hySum : (studentForm.halfYearlyMarks ? Number(studentForm.halfYearlyMarks) : undefined);
+      const fnFinalMarks = fnSum !== undefined ? fnSum : (studentForm.finalMarks ? Number(studentForm.finalMarks) : undefined);
+
+      const subjectsData = (hySub || fnSub) ? { halfYearly: hySub, final: fnSub } : undefined;
+
       const payload = {
         name: studentForm.name.trim(),
         rollNumber: studentForm.rollNumber.trim(),
@@ -239,10 +335,11 @@ export default function Admin() {
         category: studentForm.category || "General",
         mobileNumber: studentForm.mobileNumber.trim() || undefined,
         samagraId: studentForm.samagraId.trim() || undefined,
-        halfYearlyMarks: studentForm.halfYearlyMarks ? Number(studentForm.halfYearlyMarks) : undefined,
-        finalMarks: studentForm.finalMarks ? Number(studentForm.finalMarks) : undefined,
+        halfYearlyMarks: hyFinalMarks,
+        finalMarks: fnFinalMarks,
         aadharNumber: studentForm.aadharNumber.trim() || undefined,
         dkNumber: studentForm.dkNumber.trim() || undefined,
+        subjects: subjectsData,
       };
 
       if (editingStudentId) {
@@ -298,6 +395,45 @@ export default function Admin() {
     }
   };
 
+  // Assign Fee Installment
+  const handleAssignFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await assignFeeMutation({
+        target: feeForm.target,
+        targetClass: feeForm.target === "class" ? feeForm.targetClass : undefined,
+        studentId: feeForm.target === "student" && feeForm.studentId ? (feeForm.studentId as Id<"students">) : undefined,
+        title: feeForm.title.trim(),
+        amount: Number(feeForm.amount),
+        dueDate: feeForm.dueDate,
+      });
+      toast.success(`Fee structure assigned to ${res.count} student(s)!`);
+      setFeeModalOpen(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to assign fee.");
+    }
+  };
+
+  // Record Payment
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFeeForPayment) return;
+    try {
+      await recordFeePaymentMutation({
+        id: selectedFeeForPayment._id,
+        paidAmount: Number(paymentForm.paidAmount),
+        paymentDate: paymentForm.paymentDate,
+        paymentMode: paymentForm.paymentMode,
+        remarks: paymentForm.remarks.trim() || undefined,
+      });
+      toast.success("Fee payment recorded successfully!");
+      setPaymentModalOpen(false);
+      setSelectedFeeForPayment(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to record payment.");
+    }
+  };
+
   // Batch Auto Provision Accounts
   const handleAutoProvision = async () => {
     setIsProvisioning(true);
@@ -313,31 +449,31 @@ export default function Admin() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-slate-900 border-slate-800 text-slate-100 shadow-2xl">
+      <div className="min-h-screen bg-[#f5f7fa] text-slate-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-white border-slate-200 text-slate-900 shadow-xl">
           <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-2">
+            <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-600 mb-2">
               <GraduationCap className="w-6 h-6" />
             </div>
-            <CardTitle className="text-2xl text-amber-300">Admin Portal Login</CardTitle>
-            <CardDescription className="text-slate-400 text-xs">
+            <CardTitle className="text-2xl text-[#0a2540] font-bold">Admin Portal Login</CardTitle>
+            <CardDescription className="text-slate-500 text-xs">
               Maa Veena Vadini Upper Primary School Administration
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-300 font-semibold">Admin Passcode</label>
+                <label className="text-xs text-slate-700 font-semibold">Admin Passcode</label>
                 <Input
                   type="password"
                   placeholder="Enter passcode"
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  className="bg-slate-950 border-slate-800 text-slate-100"
+                  className="bg-white border-slate-300 text-slate-900 focus-visible:ring-amber-500"
                   required
                 />
               </div>
-              <Button type="submit" className="w-full bg-amber-500 text-slate-950 font-bold hover:bg-amber-400">
+              <Button type="submit" className="w-full bg-[#0a2540] text-white font-bold hover:bg-[#0f3256]">
                 Sign In to Admin Dashboard
               </Button>
             </form>
@@ -348,24 +484,24 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Admin Top Header */}
-      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-xl">
+    <div className="min-h-screen bg-[#f5f7fa] text-slate-900 flex flex-col font-sans">
+      {/* Admin Top Header - Navy Bar matching public site */}
+      <header className="bg-[#0a2540] text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
-            <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
               <GraduationCap className="w-6 h-6 text-amber-400" />
             </div>
             <div>
-              <h1 className="font-bold text-amber-300">Admin Dashboard</h1>
-              <p className="text-xs text-slate-400">Maa Veena Vadini Upper Primary School</p>
+              <h1 className="font-bold text-white text-base">Admin Dashboard</h1>
+              <p className="text-xs text-slate-300">Maa Veena Vadini Upper Primary School</p>
             </div>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={handleLogout}
-            className="border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+            className="border-white/20 text-white hover:bg-white/10 hover:text-white"
           >
             <LogOut className="w-4 h-4 mr-1.5" />
             Logout
@@ -377,283 +513,379 @@ export default function Admin() {
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-6">
         {/* Dashboard Overview Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs text-slate-400">Total Students</p>
-                <p className="text-2xl font-bold text-amber-400">{stats?.totalStudents ?? 0}</p>
+                <p className="text-xs font-medium text-slate-500">Total Students</p>
+                <p className="text-2xl font-bold text-amber-600">{stats?.totalStudents ?? 0}</p>
               </div>
-              <Users className="w-7 h-7 text-amber-500/40" />
+              <Users className="w-7 h-7 text-amber-500/60" />
             </CardContent>
           </Card>
-          <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs text-slate-400">Active Classes</p>
-                <p className="text-2xl font-bold text-slate-100">{stats?.totalClasses ?? 8}</p>
+                <p className="text-xs font-medium text-slate-500">Active Classes</p>
+                <p className="text-2xl font-bold text-slate-900">{stats?.totalClasses ?? 8}</p>
               </div>
-              <BookOpen className="w-7 h-7 text-blue-500/40" />
+              <BookOpen className="w-7 h-7 text-blue-500/60" />
             </CardContent>
           </Card>
-          <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs text-slate-400">Notices</p>
-                <p className="text-2xl font-bold text-slate-100">{stats?.totalNotices ?? 0}</p>
+                <p className="text-xs font-medium text-slate-500">Total Assigned Fee</p>
+                <p className="text-2xl font-bold text-emerald-600">₹{(stats?.totalAssignedFee || 0).toLocaleString("en-IN")}</p>
               </div>
-              <Bell className="w-7 h-7 text-emerald-500/40" />
+              <DollarSign className="w-7 h-7 text-emerald-500/60" />
             </CardContent>
           </Card>
-          <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs text-slate-400">Overdue Fees</p>
-                <p className="text-2xl font-bold text-red-400">{stats?.overdueFeesCount ?? 0}</p>
+                <p className="text-xs font-medium text-slate-500">Overdue Fees</p>
+                <p className="text-2xl font-bold text-red-600">{stats?.overdueFeesCount ?? 0}</p>
               </div>
-              <CreditCard className="w-7 h-7 text-red-500/40" />
+              <CreditCard className="w-7 h-7 text-red-500/60" />
             </CardContent>
           </Card>
-          <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs text-slate-400">Change Requests</p>
-                <p className="text-2xl font-bold text-amber-400">{stats?.pendingRequestsCount ?? 0}</p>
+                <p className="text-xs font-medium text-slate-500">Change Requests</p>
+                <p className="text-2xl font-bold text-amber-600">{stats?.pendingRequestsCount ?? 0}</p>
               </div>
-              <FileText className="w-7 h-7 text-amber-500/40" />
+              <FileText className="w-7 h-7 text-amber-500/60" />
             </CardContent>
           </Card>
         </div>
 
         {/* Main Tabbed Management */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)} className="space-y-6">
-          <TabsList className="bg-slate-900 border border-slate-800 p-1 rounded-xl grid grid-cols-2 sm:grid-cols-5 gap-1">
-            <TabsTrigger value="students" className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-semibold text-xs sm:text-sm">
+          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl grid grid-cols-3 sm:grid-cols-6 gap-1 shadow-sm">
+            <TabsTrigger value="students" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <Users className="w-4 h-4 mr-1.5 hidden sm:inline" />
               Students Table
             </TabsTrigger>
-            <TabsTrigger value="provisioning" className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-semibold text-xs sm:text-sm">
-              <KeyRound className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Account Provisioning
+            <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
+              <CreditCard className="w-4 h-4 mr-1.5 hidden sm:inline" />
+              Fees Status
             </TabsTrigger>
-            <TabsTrigger value="notices" className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-semibold text-xs sm:text-sm">
+            <TabsTrigger value="provisioning" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
+              <KeyRound className="w-4 h-4 mr-1.5 hidden sm:inline" />
+              Provisioning
+            </TabsTrigger>
+            <TabsTrigger value="notices" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <Bell className="w-4 h-4 mr-1.5 hidden sm:inline" />
               Notices Board
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-semibold text-xs sm:text-sm">
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <CalendarIcon className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              School Calendar
+              Calendar
             </TabsTrigger>
-            <TabsTrigger value="requests" className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-semibold text-xs sm:text-sm">
+            <TabsTrigger value="requests" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <FileText className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Change Requests
+              Requests
             </TabsTrigger>
           </TabsList>
 
-          {/* ---------------------------------------------------- */}
-          {/* TAB 1: STUDENTS MANAGEMENT TABLE */}
-          {/* ---------------------------------------------------- */}
+          {/* TAB 1: STUDENTS TABLE */}
           <TabsContent value="students" className="space-y-4">
-            <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
-              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardContent className="p-4 space-y-4">
+                {/* Search & Action Bar */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-64">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        type="text"
+                        placeholder="Search name, roll, mobile, ID..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 bg-white border-slate-300 text-slate-900 text-xs sm:text-sm"
+                      />
+                    </div>
+                    <select
+                      value={classFilter}
+                      onChange={(e) => setClassFilter(e.target.value)}
+                      className="bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    >
+                      <option value="all">All Classes</option>
+                      {CLASSES.map((c) => (
+                        <option key={c} value={c}>Class {c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setEditingStudentId(null);
+                      setStudentForm(emptyStudent);
+                      setStudentModalOpen(true);
+                    }}
+                    className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600 shadow-sm w-full sm:w-auto"
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" /> Add New Student
+                  </Button>
+                </div>
+
+                {/* Table */}
+                <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-sm">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-semibold">
+                      <tr>
+                        <th className="p-3">Roll</th>
+                        <th className="p-3">Student Name</th>
+                        <th className="p-3">Class</th>
+                        <th className="p-3">Category</th>
+                        <th className="p-3">Mobile</th>
+                        <th className="p-3">Samagra ID</th>
+                        <th className="p-3">DK No</th>
+                        <th className="p-3">Half Yearly</th>
+                        <th className="p-3">Final Marks</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredStudents.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="p-8 text-center text-slate-400">
+                            No student records found.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredStudents.map((s) => {
+                          const hasSubjectBreakdown = Boolean(s.subjects?.halfYearly || s.subjects?.final);
+                          return (
+                            <tr key={s._id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="p-3 font-mono font-bold text-amber-700">{s.rollNumber}</td>
+                              <td className="p-3 font-semibold text-slate-900">
+                                {s.name}
+                                {!hasSubjectBreakdown && (
+                                  <Badge variant="outline" className="ml-2 text-[10px] bg-amber-50 text-amber-700 border-amber-300">
+                                    Total Only
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="p-3">
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-800">
+                                  {s.class || "N/A"}
+                                </Badge>
+                              </td>
+                              <td className="p-3">
+                                <Badge variant="outline" className="text-xs">
+                                  {s.category || "General"}
+                                </Badge>
+                              </td>
+                              <td className="p-3 text-slate-600">{s.mobileNumber || "—"}</td>
+                              <td className="p-3 font-mono text-xs text-slate-600">{s.samagraId || "—"}</td>
+                              <td className="p-3 font-mono text-xs text-slate-600">{s.dkNumber || "—"}</td>
+                              <td className="p-3 font-semibold text-slate-800">{s.halfYearlyMarks ?? "—"}</td>
+                              <td className="p-3 font-semibold text-slate-800">{s.finalMarks ?? "—"}</td>
+                              <td className="p-3 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleOpenEditStudent(s)}
+                                    className="h-8 w-8 p-0 text-slate-600 hover:text-amber-600 hover:bg-amber-50"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setDeleteStudentId(s._id)}
+                                    className="h-8 w-8 p-0 text-slate-600 hover:text-red-600 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 2: FEES STATUS MANAGEMENT */}
+          <TabsContent value="fees" className="space-y-4">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader className="pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100">
                 <div>
-                  <CardTitle className="text-xl text-slate-50">Students Directory</CardTitle>
-                  <CardDescription className="text-slate-400 text-xs">
-                    Manage student profiles, academic marks, confidential IDs, and classes.
+                  <CardTitle className="text-lg text-[#0a2540]">Fees Management & Payment Tracker</CardTitle>
+                  <CardDescription className="text-slate-500 text-xs">
+                    Assign fee structures (tuition, transport, exam fees) and record payments per student.
                   </CardDescription>
                 </div>
-                <Button
-                  onClick={() => {
-                    setEditingStudentId(null);
-                    setStudentForm(emptyStudent);
-                    setStudentModalOpen(true);
-                  }}
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
-                >
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  Add New Student
-                </Button>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-4">
-                {/* Search and Filters */}
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
-                    <Input
-                      placeholder="Search by student name, roll number, or Aadhar..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 bg-slate-950 border-slate-800 text-slate-100"
-                    />
-                  </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <select
-                    value={classFilter}
-                    onChange={(e) => setClassFilter(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-sm text-slate-200"
+                    value={feeClassFilter}
+                    onChange={(e) => setFeeClassFilter(e.target.value)}
+                    className="bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   >
                     <option value="all">All Classes</option>
                     {CLASSES.map((c) => (
                       <option key={c} value={c}>Class {c}</option>
                     ))}
                   </select>
+                  <Button
+                    onClick={() => setFeeModalOpen(true)}
+                    className="bg-[#0a2540] text-white font-bold hover:bg-[#0f3256] text-xs sm:text-sm shadow-sm"
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" /> Assign Fee Installment
+                  </Button>
                 </div>
-
-                {/* Table */}
-                <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 text-xs">
-                          <th className="text-left py-3 px-4">Roll No</th>
-                          <th className="text-left py-3 px-4">Name</th>
-                          <th className="text-left py-3 px-4">Class</th>
-                          <th className="text-left py-3 px-4">Login Email</th>
-                          <th className="text-right py-3 px-4">Half Yearly</th>
-                          <th className="text-right py-3 px-4">Final Marks</th>
-                          <th className="text-left py-3 px-4">Aadhar / Samagra</th>
-                          <th className="text-right py-3 px-4">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredStudents.map((st) => (
-                          <tr key={st._id} className="border-b border-slate-800/60 hover:bg-slate-900/40">
-                            <td className="py-3 px-4 font-mono font-bold text-amber-400">{st.rollNumber}</td>
-                            <td className="py-3 px-4 font-semibold text-slate-100">{st.name}</td>
-                            <td className="py-3 px-4 text-slate-300">Class {st.class || "N/A"}</td>
-                            <td className="py-3 px-4 font-mono text-xs text-amber-300">{st.rollNumber}@mvvs.in</td>
-                            <td className="py-3 px-4 text-right font-medium text-slate-300">{st.halfYearlyMarks ?? "N/A"}</td>
-                            <td className="py-3 px-4 text-right font-bold text-amber-400">{st.finalMarks ?? "N/A"}</td>
-                            <td className="py-3 px-4 text-xs font-mono text-slate-400">
-                              {st.aadharNumber || "N/A"}
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    setEditingStudentId(st._id);
-                                    setStudentForm({
-                                      name: st.name,
-                                      rollNumber: st.rollNumber,
-                                      class: st.class || "1st",
-                                      dateOfBirth: st.dateOfBirth || "2015-01-01",
-                                      category: st.category || "General",
-                                      mobileNumber: st.mobileNumber || "",
-                                      samagraId: st.samagraId || st.dkNumber || "",
-                                      halfYearlyMarks: st.halfYearlyMarks?.toString() || "",
-                                      finalMarks: st.finalMarks?.toString() || "",
-                                      aadharNumber: st.aadharNumber || "",
-                                      dkNumber: st.dkNumber || "",
-                                      halfYearlySubjects: { ...emptySubjects },
-                                      finalSubjects: { ...emptySubjects },
-                                    });
-                                    setStudentModalOpen(true);
-                                  }}
-                                  className="text-amber-400 hover:text-amber-300 hover:bg-slate-800"
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setDeleteStudentId(st._id)}
-                                  className="text-red-400 hover:text-red-300 hover:bg-slate-800"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* ---------------------------------------------------- */}
-          {/* TAB 2: ACCOUNT PROVISIONING */}
-          {/* ---------------------------------------------------- */}
-          <TabsContent value="provisioning" className="space-y-4">
-            <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
-              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-800 pb-4">
-                <div>
-                  <CardTitle className="text-xl text-slate-50 flex items-center gap-2">
-                    <KeyRound className="w-5 h-5 text-amber-400" />
-                    Student Account Provisioning Overview
-                  </CardTitle>
-                  <CardDescription className="text-slate-400 text-xs">
-                    Auto-provision logins ({`{roll}@mvvs.in`}) with initial password set to student's Date of Birth.
-                  </CardDescription>
-                </div>
-                <Button
-                  onClick={handleAutoProvision}
-                  disabled={isProvisioning}
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
-                >
-                  <RefreshCw className={`w-4 h-4 mr-1.5 ${isProvisioning ? "animate-spin" : ""}`} />
-                  Auto-Provision All 182 Accounts
-                </Button>
               </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <div className="p-4 rounded-xl bg-slate-950 border border-amber-500/30 text-xs leading-relaxed text-slate-300 space-y-2">
-                  <p className="font-bold text-amber-300">🔑 How Student Provisioning Works:</p>
-                  <ul className="list-disc pl-5 space-y-1 text-slate-400">
-                    <li>Every student receives a school email: <code className="text-amber-400">{`{rollnumber}@mvvs.in`}</code>.</li>
-                    <li>The default password is their Date of Birth (DOB, e.g. <code className="text-amber-400">2015-01-01</code>).</li>
-                    <li>Student passwords are stored as secure Scrypt hashes via Convex Auth's Password provider and are never exposed.</li>
-                  </ul>
-                </div>
-
-                <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950">
-                  <div className="p-3 bg-slate-900 border-b border-slate-800 font-semibold text-xs text-slate-300">
-                    Provisioned Login Accounts Summary
-                  </div>
-                  <div className="max-h-96 overflow-y-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-800 bg-slate-900/50 text-slate-400">
-                          <th className="text-left py-2 px-3">Roll No</th>
-                          <th className="text-left py-2 px-3">Student Name</th>
-                          <th className="text-left py-2 px-3">Provisioned Email</th>
-                          <th className="text-left py-2 px-3">Default Password (DOB)</th>
-                          <th className="text-right py-2 px-3">Status</th>
+              <CardContent className="pt-4">
+                {/* Fee Installments Table */}
+                <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-sm">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-semibold">
+                      <tr>
+                        <th className="p-3">Student Name</th>
+                        <th className="p-3">Roll</th>
+                        <th className="p-3">Class</th>
+                        <th className="p-3">Fee Title</th>
+                        <th className="p-3">Total Fee</th>
+                        <th className="p-3">Paid Amount</th>
+                        <th className="p-3">Due Balance</th>
+                        <th className="p-3">Due Date</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {!allFees || allFees.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="p-8 text-center text-slate-400">
+                            No fee records assigned yet. Use <strong>"Assign Fee Installment"</strong> above to define tuition/exam fees.
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {students?.slice(0, 50).map((s) => (
-                          <tr key={s._id} className="border-b border-slate-800/40">
-                            <td className="py-2 px-3 font-mono text-amber-400">{s.rollNumber}</td>
-                            <td className="py-2 px-3 font-medium text-slate-200">{s.name}</td>
-                            <td className="py-2 px-3 font-mono text-amber-300">{s.rollNumber}@mvvs.in</td>
-                            <td className="py-2 px-3 font-mono text-slate-400">{s.dateOfBirth || "2015-01-01"}</td>
-                            <td className="py-2 px-3 text-right">
-                              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px]">
-                                Active
-                              </Badge>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      ) : (
+                        allFees.map((fee) => {
+                          const due = Math.max(0, fee.amount - fee.paidAmount);
+                          let statusBadge = (
+                            <Badge className="bg-amber-100 text-amber-800 border-amber-300">Pending</Badge>
+                          );
+                          if (fee.status === "paid") {
+                            statusBadge = (
+                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300">Paid</Badge>
+                            );
+                          } else if (fee.status === "overdue") {
+                            statusBadge = (
+                              <Badge className="bg-red-100 text-red-800 border-red-300">Overdue</Badge>
+                            );
+                          }
+
+                          return (
+                            <tr key={fee._id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="p-3 font-semibold text-slate-900">{fee.studentName}</td>
+                              <td className="p-3 font-mono text-amber-700 font-bold">{fee.rollNumber}</td>
+                              <td className="p-3">
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-800">
+                                  {fee.class}
+                                </Badge>
+                              </td>
+                              <td className="p-3 font-medium text-slate-800">{fee.title}</td>
+                              <td className="p-3 font-semibold text-slate-900">₹{fee.amount}</td>
+                              <td className="p-3 text-emerald-600 font-semibold">₹{fee.paidAmount}</td>
+                              <td className="p-3 font-bold text-red-600">₹{due}</td>
+                              <td className="p-3 text-slate-600 text-xs">{fee.dueDate}</td>
+                              <td className="p-3">{statusBadge}</td>
+                              <td className="p-3 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedFeeForPayment(fee);
+                                      setPaymentForm({
+                                        paidAmount: String(fee.amount),
+                                        paymentDate: new Date().toISOString().split("T")[0],
+                                        paymentMode: "Cash",
+                                        remarks: "",
+                                      });
+                                      setPaymentModalOpen(true);
+                                    }}
+                                    className="bg-emerald-600 text-white hover:bg-emerald-700 h-8 text-xs font-semibold px-2.5"
+                                  >
+                                    Record Payment
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setDeleteFeeId(fee._id)}
+                                    className="h-8 w-8 p-0 text-slate-600 hover:text-red-600 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* ---------------------------------------------------- */}
-          {/* TAB 3: NOTICES BOARD */}
-          {/* ---------------------------------------------------- */}
+          {/* TAB 3: ACCOUNT PROVISIONING */}
+          <TabsContent value="provisioning" className="space-y-4">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#0a2540]">Account Provisioning & Security</CardTitle>
+                <CardDescription className="text-slate-500 text-xs">
+                  Automatically generate authenticated login credentials for all registered students. Default password is set to their Date of Birth (YYYY-MM-DD).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 text-amber-900">
+                  <ShieldCheck className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-sm">Automated Student Accounts</h4>
+                    <p className="text-xs text-amber-800 mt-1">
+                      Clicking <strong>"Provision All Accounts"</strong> scans the database for any student profiles missing default credentials or missing birth dates and automatically sets up seamless single-sign-on access.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <Button
+                    onClick={handleAutoProvision}
+                    disabled={isProvisioning}
+                    className="bg-[#0a2540] text-white font-bold hover:bg-[#0f3256]"
+                  >
+                    {isProvisioning ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Provisioning Accounts...
+                      </>
+                    ) : (
+                      <>
+                        <KeyRound className="w-4 h-4 mr-2" /> Provision All Student Accounts Now
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 4: NOTICES BOARD */}
           <TabsContent value="notices" className="space-y-4">
-            <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
-              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-800 pb-4">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl text-slate-50">Notices Board Manager</CardTitle>
-                  <CardDescription className="text-slate-400 text-xs">
-                    Publish and update school announcements on the notice board.
+                  <CardTitle className="text-lg text-[#0a2540]">School Notices Board</CardTitle>
+                  <CardDescription className="text-slate-500 text-xs">
+                    Publish official announcements and updates visible on the main school landing page.
                   </CardDescription>
                 </div>
                 <Button
@@ -662,49 +894,51 @@ export default function Admin() {
                     setNoticeForm(emptyNotice);
                     setNoticeModalOpen(true);
                   }}
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+                  className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600"
                 >
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  Post New Notice
+                  <Plus className="w-4 h-4 mr-1.5" /> Add Notice
                 </Button>
               </CardHeader>
-              <CardContent className="pt-6 space-y-4">
+              <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {notices?.map((n) => (
-                    <div key={n._id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                      <div className="flex justify-between items-start">
-                        <h4 className="font-bold text-slate-100 text-base">{n.title}</h4>
-                        {n.important && (
-                          <Badge variant="destructive" className="text-xs">Important</Badge>
+                  {(notices || []).map((notice) => (
+                    <div
+                      key={notice._id}
+                      className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 shadow-sm hover:shadow transition-shadow"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-bold text-slate-900">{notice.title}</h4>
+                        {notice.important && (
+                          <Badge variant="destructive" className="text-[10px]">Important</Badge>
                         )}
                       </div>
-                      <p className="text-xs text-slate-300 whitespace-pre-line line-clamp-3">{n.content}</p>
-                      <div className="flex justify-between items-center pt-2 border-t border-slate-800 text-xs text-slate-400">
-                        <span>📅 {n.date}</span>
+                      <p className="text-xs text-slate-600 whitespace-pre-line">{notice.content}</p>
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                        <span>Date: {notice.date}</span>
                         <div className="flex gap-2">
                           <Button
-                            variant="ghost"
                             size="sm"
+                            variant="ghost"
                             onClick={() => {
-                              setEditingNoticeId(n._id);
+                              setEditingNoticeId(notice._id);
                               setNoticeForm({
-                                title: n.title,
-                                content: n.content,
-                                date: n.date,
-                                important: !!n.important,
-                                imageUrl: n.imageUrl || "",
+                                title: notice.title,
+                                content: notice.content,
+                                date: notice.date,
+                                important: Boolean(notice.important),
+                                imageUrl: notice.imageUrl || "",
                               });
                               setNoticeModalOpen(true);
                             }}
-                            className="text-amber-400 hover:bg-slate-900"
+                            className="h-7 px-2 text-amber-600 hover:bg-amber-50"
                           >
                             Edit
                           </Button>
                           <Button
-                            variant="ghost"
                             size="sm"
-                            onClick={() => removeNoticeMutation({ id: n._id })}
-                            className="text-red-400 hover:bg-slate-900"
+                            variant="ghost"
+                            onClick={() => setDeleteNoticeId(notice._id)}
+                            className="h-7 px-2 text-red-600 hover:bg-red-50"
                           >
                             Delete
                           </Button>
@@ -717,16 +951,14 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          {/* ---------------------------------------------------- */}
-          {/* TAB 4: SCHOOL CALENDAR MANAGER */}
-          {/* ---------------------------------------------------- */}
+          {/* TAB 5: SCHOOL CALENDAR */}
           <TabsContent value="calendar" className="space-y-4">
-            <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
-              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-800 pb-4">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl text-slate-50">School Calendar Manager</CardTitle>
-                  <CardDescription className="text-slate-400 text-xs">
-                    Add and update holidays, examination dates, PTMs, and school events.
+                  <CardTitle className="text-lg text-[#0a2540]">School Calendar & Events</CardTitle>
+                  <CardDescription className="text-slate-500 text-xs">
+                    Manage holidays, examinations, sports day, and administrative events.
                   </CardDescription>
                 </div>
                 <Button
@@ -735,34 +967,37 @@ export default function Admin() {
                     setCalendarForm(emptyCalendarEvent);
                     setCalendarModalOpen(true);
                   }}
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+                  className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600"
                 >
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  Add Event
+                  <Plus className="w-4 h-4 mr-1.5" /> Add Calendar Event
                 </Button>
               </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {calendarEvents?.map((ev) => (
-                    <div key={ev._id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <h4 className="font-bold text-slate-100 text-base">{ev.title}</h4>
-                        <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 capitalize text-xs">
-                          {ev.category}
-                        </Badge>
+              <CardContent>
+                <div className="space-y-3">
+                  {(calendarEvents || []).map((ev) => (
+                    <div
+                      key={ev._id}
+                      className="p-3 rounded-lg border border-slate-200 bg-white flex items-center justify-between shadow-sm"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-900 text-sm">{ev.title}</span>
+                          <Badge variant="outline" className="capitalize text-xs">
+                            {ev.category}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {ev.startDate} {ev.endDate ? `to ${ev.endDate}` : ""} {ev.description ? `• ${ev.description}` : ""}
+                        </p>
                       </div>
-                      <p className="text-xs text-amber-400 font-mono">Date: {ev.startDate}</p>
-                      {ev.description && <p className="text-xs text-slate-400">{ev.description}</p>}
-                      <div className="flex justify-end gap-2 pt-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeCalendarMutation({ id: ev._id })}
-                          className="text-red-400 hover:bg-slate-900 text-xs"
-                        >
-                          Delete
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setDeleteCalendarId(ev._id)}
+                        className="text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -770,169 +1005,256 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          {/* ---------------------------------------------------- */}
-          {/* TAB 5: PROFILE CHANGE REQUESTS */}
-          {/* ---------------------------------------------------- */}
+          {/* TAB 6: CHANGE REQUESTS */}
           <TabsContent value="requests" className="space-y-4">
-            <Card className="bg-slate-900 border-slate-800 text-slate-100 shadow-xl">
-              <CardHeader className="border-b border-slate-800 pb-4">
-                <CardTitle className="text-xl text-slate-50">Student Profile Correction Requests</CardTitle>
-                <CardDescription className="text-slate-400 text-xs">
-                  Review and update requests submitted by students for profile adjustments.
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg text-[#0a2540]">Student Profile Change Requests</CardTitle>
+                <CardDescription className="text-slate-500 text-xs">
+                  Review and approve correction requests submitted by students or parents.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pt-6">
-                {changeRequests && changeRequests.length > 0 ? (
-                  <div className="space-y-3">
-                    {changeRequests.map((req) => (
-                      <div key={req._id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <CardContent>
+                <div className="space-y-3">
+                  {(!changeRequests || changeRequests.length === 0) ? (
+                    <p className="text-center text-slate-400 p-6 text-sm">No pending change requests.</p>
+                  ) : (
+                    changeRequests.map((req) => (
+                      <div
+                        key={req._id}
+                        className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm"
+                      >
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-slate-100">{req.studentName}</h4>
-                            <Badge className="bg-amber-500/20 text-amber-400 font-mono text-xs">Roll {req.rollNumber}</Badge>
+                            <span className="font-bold text-slate-900">{req.studentName}</span>
+                            <span className="text-xs text-amber-700 font-mono">Roll: {req.rollNumber}</span>
+                            <Badge
+                              variant="outline"
+                              className={
+                                req.status === "approved"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                  : req.status === "rejected"
+                                  ? "bg-red-50 text-red-700 border-red-300"
+                                  : "bg-amber-50 text-amber-700 border-amber-300"
+                              }
+                            >
+                              {req.status}
+                            </Badge>
                           </div>
-                          <p className="text-xs text-slate-300 mt-1">{req.requestDetails}</p>
+                          <p className="text-xs text-slate-600 mt-1">{req.requestDetails}</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={req.status === "approved" ? "bg-emerald-500/20 text-emerald-300" : req.status === "rejected" ? "bg-red-500/20 text-red-300" : "bg-amber-500/20 text-amber-300"}>
-                            {req.status.toUpperCase()}
-                          </Badge>
-                          {req.status === "pending" && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => updateChangeRequestMutation({ id: req._id, status: "approved" })}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateChangeRequestMutation({ id: req._id, status: "rejected" })}
-                                className="border-red-800 text-red-400 hover:bg-red-950 text-xs"
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                        {req.status === "pending" && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => updateChangeRequestMutation({ id: req._id, status: "approved" })}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateChangeRequestMutation({ id: req._id, status: "rejected" })}
+                              className="border-slate-300 text-slate-700 text-xs"
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center bg-slate-950 rounded-xl border border-slate-800 text-slate-400">
-                    <FileText className="w-8 h-8 mx-auto text-slate-600 mb-2" />
-                    <p className="text-sm">No pending profile correction requests.</p>
-                  </div>
-                )}
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </main>
 
-      {/* Add / Edit Student Modal */}
+      {/* DIALOG 1: ADD/EDIT STUDENT MODAL */}
       <Dialog open={studentModalOpen} onOpenChange={setStudentModalOpen}>
-        <DialogContent className="bg-slate-950 border-slate-800 text-slate-100 max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg text-amber-400">
-              {editingStudentId ? "Edit Student Profile" : "Add New Student"}
+            <DialogTitle className="text-xl text-[#0a2540]">
+              {editingStudentId ? "Edit Student Profile" : "Add New Student Record"}
             </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              Complete student details and enter subject-wise exam marks.
+            </DialogDescription>
           </DialogHeader>
+
           <form onSubmit={handleSaveStudent} className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Student Name *</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Student Full Name *</label>
                 <Input
+                  required
+                  placeholder="e.g. Aarav Sharma"
                   value={studentForm.name}
                   onChange={(e) => setStudentForm({ ...studentForm, name: e.target.value })}
-                  className="bg-slate-900 border-slate-800 text-slate-100"
-                  required
+                  className="bg-white border-slate-300 text-slate-900"
                 />
               </div>
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Roll Number *</label>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Roll Number *</label>
                 <Input
+                  required
+                  placeholder="e.g. 101"
                   value={studentForm.rollNumber}
                   onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value })}
-                  className="bg-slate-900 border-slate-800 text-slate-100 font-mono"
-                  required
+                  className="bg-white border-slate-300 text-slate-900"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Class</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Class *</label>
                 <select
                   value={studentForm.class}
                   onChange={(e) => setStudentForm({ ...studentForm, class: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-slate-200"
+                  className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm text-slate-900 focus:ring-amber-500"
                 >
                   {CLASSES.map((c) => (
                     <option key={c} value={c}>Class {c}</option>
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Date of Birth (DOB) *</label>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Category *</label>
+                <select
+                  value={studentForm.category}
+                  onChange={(e) => setStudentForm({ ...studentForm, category: e.target.value })}
+                  className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm text-slate-900 focus:ring-amber-500"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Date of Birth (YYYY-MM-DD)</label>
                 <Input
-                  type="text"
-                  placeholder="YYYY-MM-DD"
+                  type="date"
                   value={studentForm.dateOfBirth}
                   onChange={(e) => setStudentForm({ ...studentForm, dateOfBirth: e.target.value })}
-                  className="bg-slate-900 border-slate-800 text-slate-100 font-mono"
-                  required
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Mobile Number</label>
+                <Input
+                  placeholder="e.g. 9876543210"
+                  value={studentForm.mobileNumber}
+                  onChange={(e) => setStudentForm({ ...studentForm, mobileNumber: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Aadhar Number</label>
+            {/* Split Samagra ID and DK No. */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Samagra ID</label>
                 <Input
-                  value={studentForm.aadharNumber}
-                  onChange={(e) => setStudentForm({ ...studentForm, aadharNumber: e.target.value })}
-                  className="bg-slate-900 border-slate-800 text-slate-100 font-mono"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Samagra ID / DK No.</label>
-                <Input
+                  placeholder="e.g. 123456789"
                   value={studentForm.samagraId}
                   onChange={(e) => setStudentForm({ ...studentForm, samagraId: e.target.value })}
-                  className="bg-slate-900 border-slate-800 text-slate-100 font-mono"
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">DK No.</label>
+                <Input
+                  placeholder="e.g. DK-9876"
+                  value={studentForm.dkNumber}
+                  onChange={(e) => setStudentForm({ ...studentForm, dkNumber: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Aadhar Number</label>
+                <Input
+                  placeholder="e.g. 1234 5678 9012"
+                  value={studentForm.aadharNumber}
+                  onChange={(e) => setStudentForm({ ...studentForm, aadharNumber: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Half Yearly Total Marks</label>
-                <Input
-                  type="number"
-                  value={studentForm.halfYearlyMarks}
-                  onChange={(e) => setStudentForm({ ...studentForm, halfYearlyMarks: e.target.value })}
-                  className="bg-slate-900 border-slate-800 text-slate-100"
-                />
+            {/* Subject-Wise Marks Entry */}
+            <div className="space-y-4 pt-2 border-t border-slate-200">
+              <h4 className="font-bold text-sm text-[#0a2540]">Subject-Wise Marks Entry (Max 100 per subject)</h4>
+
+              {/* Half Yearly Subjects */}
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+                <p className="text-xs font-bold text-slate-800">Half Yearly Examination</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {SUBJECTS.map((sub) => (
+                    <div key={sub.key} className="space-y-1">
+                      <label className="text-[11px] text-slate-600">{sub.label}</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        placeholder="Marks"
+                        value={studentForm.halfYearlySubjects[sub.key] || ""}
+                        onChange={(e) =>
+                          setStudentForm({
+                            ...studentForm,
+                            halfYearlySubjects: {
+                              ...studentForm.halfYearlySubjects,
+                              [sub.key]: e.target.value,
+                            },
+                          })
+                        }
+                        className="bg-white border-slate-300 text-xs text-slate-900 h-8"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Final Total Marks</label>
-                <Input
-                  type="number"
-                  value={studentForm.finalMarks}
-                  onChange={(e) => setStudentForm({ ...studentForm, finalMarks: e.target.value })}
-                  className="bg-slate-900 border-slate-800 text-slate-100"
-                />
+
+              {/* Final Subjects */}
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+                <p className="text-xs font-bold text-slate-800">Final Examination</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {SUBJECTS.map((sub) => (
+                    <div key={sub.key} className="space-y-1">
+                      <label className="text-[11px] text-slate-600">{sub.label}</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        placeholder="Marks"
+                        value={studentForm.finalSubjects[sub.key] || ""}
+                        onChange={(e) =>
+                          setStudentForm({
+                            ...studentForm,
+                            finalSubjects: {
+                              ...studentForm.finalSubjects,
+                              [sub.key]: e.target.value,
+                            },
+                          })
+                        }
+                        className="bg-white border-slate-300 text-xs text-slate-900 h-8"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="ghost" onClick={() => setStudentModalOpen(false)}>
+            <DialogFooter className="pt-4 border-t border-slate-200">
+              <Button type="button" variant="outline" onClick={() => setStudentModalOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-400">
+              <Button type="submit" className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
                 Save Student Record
               </Button>
             </DialogFooter>
@@ -940,26 +1262,340 @@ export default function Admin() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Alert */}
-      <AlertDialog open={!!deleteStudentId} onOpenChange={() => setDeleteStudentId(null)}>
-        <AlertDialogContent className="bg-slate-950 border-slate-800 text-slate-100">
+      {/* DIALOG 2: ASSIGN FEE INSTALLMENT */}
+      <Dialog open={feeModalOpen} onOpenChange={setFeeModalOpen}>
+        <DialogContent className="max-w-md bg-white border-slate-200 text-slate-900">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-[#0a2540]">Assign Fee Installment</DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              Define tuition, exam, or transport fee structure for students.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAssignFee} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Target Assignment</label>
+              <select
+                value={feeForm.target}
+                onChange={(e: any) => setFeeForm({ ...feeForm, target: e.target.value })}
+                className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm text-slate-900"
+              >
+                <option value="all">All Students in School</option>
+                <option value="class">Entire Specific Class</option>
+                <option value="student">Single Student</option>
+              </select>
+            </div>
+
+            {feeForm.target === "class" && (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Select Class</label>
+                <select
+                  value={feeForm.targetClass}
+                  onChange={(e) => setFeeForm({ ...feeForm, targetClass: e.target.value })}
+                  className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm text-slate-900"
+                >
+                  {CLASSES.map((c) => (
+                    <option key={c} value={c}>Class {c}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {feeForm.target === "student" && (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Select Student</label>
+                <select
+                  value={feeForm.studentId}
+                  onChange={(e) => setFeeForm({ ...feeForm, studentId: e.target.value })}
+                  className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm text-slate-900"
+                  required
+                >
+                  <option value="">-- Choose Student --</option>
+                  {(students || []).map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name} (Class {s.class || "N/A"} - Roll {s.rollNumber})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Fee Description / Title *</label>
+              <Input
+                required
+                placeholder="e.g. Tuition Fee - Term 1"
+                value={feeForm.title}
+                onChange={(e) => setFeeForm({ ...feeForm, title: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Amount (₹) *</label>
+                <Input
+                  type="number"
+                  required
+                  min="1"
+                  placeholder="1500"
+                  value={feeForm.amount}
+                  onChange={(e) => setFeeForm({ ...feeForm, amount: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Due Date *</label>
+                <Input
+                  type="date"
+                  required
+                  value={feeForm.dueDate}
+                  onChange={(e) => setFeeForm({ ...feeForm, dueDate: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-slate-200">
+              <Button type="button" variant="outline" onClick={() => setFeeModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
+                Assign Installment
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG 3: RECORD PAYMENT */}
+      <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
+        <DialogContent className="max-w-md bg-white border-slate-200 text-slate-900">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-[#0a2540]">Record Fee Payment</DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              Log payment details for {selectedFeeForPayment?.studentName} ({selectedFeeForPayment?.title}).
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleRecordPayment} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Paid Amount (₹) *</label>
+              <Input
+                type="number"
+                required
+                min="0"
+                max={selectedFeeForPayment?.amount || 100000}
+                value={paymentForm.paidAmount}
+                onChange={(e) => setPaymentForm({ ...paymentForm, paidAmount: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900"
+              />
+              <p className="text-[11px] text-slate-500">Total Installment Amount: ₹{selectedFeeForPayment?.amount || 0}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Payment Date</label>
+                <Input
+                  type="date"
+                  value={paymentForm.paymentDate}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Payment Mode</label>
+                <select
+                  value={paymentForm.paymentMode}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, paymentMode: e.target.value })}
+                  className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm text-slate-900"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="UPI">UPI / Online</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Cheque">Cheque</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Remarks / Receipt No.</label>
+              <Input
+                placeholder="e.g. Receipt #4582"
+                value={paymentForm.remarks}
+                onChange={(e) => setPaymentForm({ ...paymentForm, remarks: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900"
+              />
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-slate-200">
+              <Button type="button" variant="outline" onClick={() => setPaymentModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-emerald-600 text-white hover:bg-emerald-700 font-bold">
+                Confirm & Save Payment
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG 4: ADD/EDIT NOTICE */}
+      <Dialog open={noticeModalOpen} onOpenChange={setNoticeModalOpen}>
+        <DialogContent className="max-w-md bg-white border-slate-200 text-slate-900">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-[#0a2540]">
+              {editingNoticeId ? "Edit Notice" : "Add School Announcement"}
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              {editingNoticeId ? "Update announcement details below." : "Create a new notice to display on the school website."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveNotice} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Notice Title *</label>
+              <Input
+                required
+                placeholder="e.g. Annual Sports Meet 2026"
+                value={noticeForm.title}
+                onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Notice Content *</label>
+              <Textarea
+                required
+                rows={4}
+                placeholder="Detailed announcement details..."
+                value={noticeForm.content}
+                onChange={(e) => setNoticeForm({ ...noticeForm, content: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Date</label>
+                <Input
+                  type="date"
+                  value={noticeForm.date}
+                  onChange={(e) => setNoticeForm({ ...noticeForm, date: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+              <div className="space-y-1 flex flex-col justify-end">
+                <label className="flex items-center gap-2 cursor-pointer pb-2">
+                  <input
+                    type="checkbox"
+                    checked={noticeForm.important}
+                    onChange={(e) => setNoticeForm({ ...noticeForm, important: e.target.checked })}
+                    className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+                  />
+                  <span className="text-xs font-semibold text-slate-700">Mark as Important</span>
+                </label>
+              </div>
+            </div>
+            <DialogFooter className="pt-4 border-t border-slate-200">
+              <Button type="button" variant="outline" onClick={() => setNoticeModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
+                Save Notice
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG 5: ADD/EDIT CALENDAR EVENT */}
+      <Dialog open={calendarModalOpen} onOpenChange={setCalendarModalOpen}>
+        <DialogContent className="max-w-md bg-white border-slate-200 text-slate-900">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-[#0a2540]">
+              {editingCalendarId ? "Edit Calendar Event" : "Add Calendar Event"}
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              {editingCalendarId ? "Update calendar event details below." : "Schedule an upcoming event or holiday."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveCalendar} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Event Title *</label>
+              <Input
+                required
+                placeholder="e.g. Half Yearly Examinations"
+                value={calendarForm.title}
+                onChange={(e) => setCalendarForm({ ...calendarForm, title: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Category</label>
+                <select
+                  value={calendarForm.category}
+                  onChange={(e: any) => setCalendarForm({ ...calendarForm, category: e.target.value })}
+                  className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm text-slate-900"
+                >
+                  <option value="holiday">Holiday</option>
+                  <option value="exam">Examination</option>
+                  <option value="event">Event</option>
+                  <option value="ptm">Parent Teacher Meeting</option>
+                  <option value="admission">Admission</option>
+                  <option value="notice">Notice</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Start Date *</label>
+                <Input
+                  type="date"
+                  required
+                  value={calendarForm.startDate}
+                  onChange={(e) => setCalendarForm({ ...calendarForm, startDate: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Description</label>
+              <Textarea
+                rows={2}
+                placeholder="Event summary..."
+                value={calendarForm.description}
+                onChange={(e) => setCalendarForm({ ...calendarForm, description: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900"
+              />
+            </div>
+            <DialogFooter className="pt-4 border-t border-slate-200">
+              <Button type="button" variant="outline" onClick={() => setCalendarModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
+                Save Event
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ALERT DIALOGS FOR DELETE CONFIRMATION */}
+      <AlertDialog open={Boolean(deleteStudentId)} onOpenChange={() => setDeleteStudentId(null)}>
+        <AlertDialogContent className="bg-white border-slate-200 text-slate-900">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-400">Confirm Student Deletion</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400 text-xs">
-              Are you sure you want to delete this student record? This action cannot be undone.
+            <AlertDialogTitle>Delete Student Record?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
+              This action cannot be undone. This will permanently delete the student's profile.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-900 border-slate-800 text-slate-300">Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (deleteStudentId) {
                   await removeStudentMutation({ id: deleteStudentId });
-                  toast.success("Student removed.");
+                  toast.success("Student record deleted.");
                   setDeleteStudentId(null);
                 }
               }}
-              className="bg-red-600 hover:bg-red-500 text-white font-bold"
+              className="bg-red-600 text-white hover:bg-red-700"
             >
               Delete Student
             </AlertDialogAction>
@@ -967,131 +1603,57 @@ export default function Admin() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Add / Edit Notice Modal */}
-      <Dialog open={noticeModalOpen} onOpenChange={setNoticeModalOpen}>
-        <DialogContent className="bg-slate-950 border-slate-800 text-slate-100 max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-amber-400">
-              {editingNoticeId ? "Edit Notice" : "Post New Notice"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSaveNotice} className="space-y-4 pt-2">
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">Title *</label>
-              <Input
-                value={noticeForm.title}
-                onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })}
-                className="bg-slate-900 border-slate-800 text-slate-100"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">Content *</label>
-              <Textarea
-                value={noticeForm.content}
-                onChange={(e) => setNoticeForm({ ...noticeForm, content: e.target.value })}
-                className="bg-slate-900 border-slate-800 text-slate-100 min-h-[120px]"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Date</label>
-                <Input
-                  type="date"
-                  value={noticeForm.date}
-                  onChange={(e) => setNoticeForm({ ...noticeForm, date: e.target.value })}
-                  className="bg-slate-900 border-slate-800 text-slate-100"
-                />
-              </div>
-              <div className="flex items-center pt-5">
-                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={noticeForm.important}
-                    onChange={(e) => setNoticeForm({ ...noticeForm, important: e.target.checked })}
-                    className="accent-amber-500 w-4 h-4"
-                  />
-                  Mark as Important
-                </label>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setNoticeModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-400">
-                Publish Notice
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={Boolean(deleteNoticeId)} onOpenChange={() => setDeleteNoticeId(null)}>
+        <AlertDialogContent className="bg-white border-slate-200 text-slate-900">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Notice?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
+              This will remove the notice from the school website.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (deleteNoticeId) {
+                  await removeNoticeMutation({ id: deleteNoticeId });
+                  toast.success("Notice deleted.");
+                  setDeleteNoticeId(null);
+                }
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete Notice
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {/* Add / Edit Calendar Modal */}
-      <Dialog open={calendarModalOpen} onOpenChange={setCalendarModalOpen}>
-        <DialogContent className="bg-slate-950 border-slate-800 text-slate-100 max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-amber-400">
-              {editingCalendarId ? "Edit Calendar Event" : "Add Calendar Event"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSaveCalendar} className="space-y-4 pt-2">
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">Event Title *</label>
-              <Input
-                value={calendarForm.title}
-                onChange={(e) => setCalendarForm({ ...calendarForm, title: e.target.value })}
-                className="bg-slate-900 border-slate-800 text-slate-100"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Start Date *</label>
-                <Input
-                  type="date"
-                  value={calendarForm.startDate}
-                  onChange={(e) => setCalendarForm({ ...calendarForm, startDate: e.target.value })}
-                  className="bg-slate-900 border-slate-800 text-slate-100"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Category</label>
-                <select
-                  value={calendarForm.category}
-                  onChange={(e: any) => setCalendarForm({ ...calendarForm, category: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-slate-200"
-                >
-                  <option value="holiday">Holiday</option>
-                  <option value="exam">Exam</option>
-                  <option value="event">Event</option>
-                  <option value="ptm">PTM</option>
-                  <option value="admission">Admission</option>
-                  <option value="notice">Notice</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">Description</label>
-              <Textarea
-                value={calendarForm.description}
-                onChange={(e) => setCalendarForm({ ...calendarForm, description: e.target.value })}
-                className="bg-slate-900 border-slate-800 text-slate-100"
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setCalendarModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-400">
-                Save Event
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={Boolean(deleteFeeId)} onOpenChange={() => setDeleteFeeId(null)}>
+        <AlertDialogContent className="bg-white border-slate-200 text-slate-900">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Fee Installment Record?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
+              This will remove this fee assignment record permanently.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (deleteFeeId) {
+                  await removeFeeMutation({ id: deleteFeeId });
+                  toast.success("Fee record deleted.");
+                  setDeleteFeeId(null);
+                }
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete Record
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

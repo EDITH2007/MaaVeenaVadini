@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Bell,
@@ -391,6 +392,9 @@ export default function Landing() {
                       {selectedNotice.title}
                     </DialogTitle>
                   </div>
+                  <DialogDescription className="text-xs text-muted-foreground">
+                    Notice Details
+                  </DialogDescription>
                   <div className="flex items-center gap-2 pt-2 flex-wrap">
                     <span className="text-xs text-muted-foreground">{selectedNotice.date}</span>
                     {selectedNotice.category && (
