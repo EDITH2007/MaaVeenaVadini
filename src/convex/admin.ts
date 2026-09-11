@@ -21,7 +21,7 @@ const subjectsValidator = v.optional(
   })
 );
 
-async function checkAdmin(ctx: any) {
+export async function checkAdmin(ctx: any) {
   const userId = await getAuthUserId(ctx);
   if (!userId) {
     // For legacy/simple admin access during transition, allow if authorized or check user role

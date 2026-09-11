@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { checkAdmin } from "./admin";
 
 export const listPublicEvents = query({
   args: {},
@@ -26,12 +26,7 @@ export const addEvent = mutation({
     isPublic: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized: Must be logged in");
-    const user = await ctx.db.get(userId);
-    if (user?.role !== "admin") {
-      throw new Error("Unauthorized: Admin access required");
-    }
+    await checkAdmin(ctx);
     return await ctx.db.insert("calendar_events", args);
   },
 });
@@ -54,12 +49,7 @@ export const updateEvent = mutation({
     isPublic: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized: Must be logged in");
-    const user = await ctx.db.get(userId);
-    if (user?.role !== "admin") {
-      throw new Error("Unauthorized: Admin access required");
-    }
+    await checkAdmin(ctx);
     const { id, ...rest } = args;
     await ctx.db.patch(id, rest);
   },
@@ -68,12 +58,8 @@ export const updateEvent = mutation({
 export const removeEvent = mutation({
   args: { id: v.id("calendar_events") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Unauthorized: Must be logged in");
-    const user = await ctx.db.get(userId);
-    if (user?.role !== "admin") {
-      throw new Error("Unauthorized: Admin access required");
-    }
+    await checkAdmin(ctx);
     await ctx.db.delete(args.id);
   },
 });
+
