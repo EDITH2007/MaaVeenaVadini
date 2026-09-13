@@ -909,56 +909,56 @@ export default function Admin() {
     <div className="min-h-screen bg-[#f5f7fa] text-slate-900 flex flex-col font-sans">
       {/* Admin Top Header - Navy Bar matching public site */}
       <header className="bg-[#0a2540] text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
-            <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-amber-400" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3 cursor-pointer min-w-0" onClick={() => navigate("/")}>
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+              <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
             </div>
-            <div>
-              <h1 className="font-bold text-white text-base">Admin Dashboard</h1>
-              <p className="text-xs text-slate-300">Maa Veena Vadini Upper Primary School</p>
+            <div className="min-w-0">
+              <h1 className="font-bold text-white text-xs sm:text-base leading-tight truncate sm:whitespace-normal">Admin Dashboard</h1>
+              <p className="text-[10px] sm:text-xs text-slate-300 truncate">Maa Veena Vadini School</p>
             </div>
           </div>
           <Button
             variant="outlineWhite"
             size="sm"
             onClick={handleLogout}
-            className="font-medium"
+            className="font-medium text-xs sm:text-sm px-2.5 sm:px-3 min-h-[36px] shrink-0"
           >
-            <LogOut className="w-4 h-4 mr-1.5" />
+            <LogOut className="w-3.5 h-3.5 mr-1.5" />
             Logout
           </Button>
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-6">
+      <main className="flex-1 max-w-7xl mx-auto w-full p-3 sm:p-6 space-y-5 sm:space-y-6">
         {/* Dashboard Overview Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
           <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500">Total Students</p>
-                <p className="text-2xl font-bold text-amber-600">{stats?.totalStudents ?? 0}</p>
+                <p className="text-[11px] sm:text-xs font-medium text-slate-500">Total Students</p>
+                <p className="text-xl sm:text-2xl font-bold text-amber-600">{stats?.totalStudents ?? 0}</p>
               </div>
-              <Users className="w-7 h-7 text-amber-500/60" />
+              <Users className="w-6 h-6 sm:w-7 sm:h-7 text-amber-500/60 shrink-0" />
             </CardContent>
           </Card>
           <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500">Active Classes</p>
-                <p className="text-2xl font-bold text-slate-900">{stats?.totalClasses ?? 8}</p>
+                <p className="text-[11px] sm:text-xs font-medium text-slate-500">Active Classes</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats?.totalClasses ?? 8}</p>
               </div>
-              <BookOpen className="w-7 h-7 text-blue-500/60" />
+              <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-blue-500/60 shrink-0" />
             </CardContent>
           </Card>
           {/* Card 3: Total Assigned Fee (PIN-gated) */}
           <Card className="bg-white border-slate-200 text-slate-900 shadow-sm relative overflow-hidden">
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between">
               <div>
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-medium text-slate-500">Total Assigned Fee</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-[11px] sm:text-xs font-medium text-slate-500">Total Assigned Fee</p>
                   {protectedFeeStats?.authorized ? (
                     <button
                       onClick={handleLockFeeSummary}
@@ -972,12 +972,12 @@ export default function Admin() {
                   )}
                 </div>
                 {protectedFeeStats?.authorized ? (
-                  <p className="text-2xl font-bold text-emerald-600">
+                  <p className="text-xl sm:text-2xl font-bold text-emerald-600">
                     ₹{(protectedFeeStats.totalAssignedFee || 0).toLocaleString("en-IN")}
                   </p>
                 ) : (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xl font-bold text-slate-400 tracking-widest">••••••</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="text-lg sm:text-xl font-bold text-slate-400 tracking-wider">••••</span>
                     <Button
                       size="sm"
                       variant="outline"
@@ -986,23 +986,23 @@ export default function Admin() {
                         setPinError("");
                         setPinModalOpen(true);
                       }}
-                      className="h-6 px-2 text-[11px] font-bold border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                      className="h-6 px-1.5 sm:px-2 text-[10px] sm:text-[11px] font-bold border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
                     >
                       Enter PIN
                     </Button>
                   </div>
                 )}
               </div>
-              <DollarSign className="w-7 h-7 text-emerald-500/60" />
+              <DollarSign className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-500/60 shrink-0" />
             </CardContent>
           </Card>
 
           {/* Card 4: Overdue Fees (PIN-gated) */}
           <Card className="bg-white border-slate-200 text-slate-900 shadow-sm relative overflow-hidden">
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between">
               <div>
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-medium text-slate-500">Overdue Fees</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-[11px] sm:text-xs font-medium text-slate-500">Overdue Fees</p>
                   {protectedFeeStats?.authorized ? (
                     <button
                       onClick={handleLockFeeSummary}
@@ -1016,12 +1016,12 @@ export default function Admin() {
                   )}
                 </div>
                 {protectedFeeStats?.authorized ? (
-                  <p className="text-2xl font-bold text-red-600">
+                  <p className="text-xl sm:text-2xl font-bold text-red-600">
                     {protectedFeeStats.overdueFeesCount ?? 0}
                   </p>
                 ) : (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xl font-bold text-slate-400 tracking-widest">••••••</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="text-lg sm:text-xl font-bold text-slate-400 tracking-wider">••••</span>
                     <Button
                       size="sm"
                       variant="outline"
@@ -1030,65 +1030,65 @@ export default function Admin() {
                         setPinError("");
                         setPinModalOpen(true);
                       }}
-                      className="h-6 px-2 text-[11px] font-bold border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                      className="h-6 px-1.5 sm:px-2 text-[10px] sm:text-[11px] font-bold border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
                     >
                       Enter PIN
                     </Button>
                   </div>
                 )}
               </div>
-              <CreditCard className="w-7 h-7 text-red-500/60" />
+              <CreditCard className="w-6 h-6 sm:w-7 sm:h-7 text-red-500/60 shrink-0" />
             </CardContent>
           </Card>
-          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm col-span-2 sm:col-span-1">
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500">Change Requests</p>
-                <p className="text-2xl font-bold text-amber-600">{stats?.pendingRequestsCount ?? 0}</p>
+                <p className="text-[11px] sm:text-xs font-medium text-slate-500">Change Requests</p>
+                <p className="text-xl sm:text-2xl font-bold text-amber-600">{stats?.pendingRequestsCount ?? 0}</p>
               </div>
-              <FileText className="w-7 h-7 text-amber-500/60" />
+              <FileText className="w-6 h-6 sm:w-7 sm:h-7 text-amber-500/60 shrink-0" />
             </CardContent>
           </Card>
         </div>
 
         {/* Main Tabbed Management */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)} className="space-y-6">
-          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-1 shadow-sm">
-            <TabsTrigger value="students" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <Users className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Students
+          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl flex overflow-x-auto no-scrollbar gap-1.5 shadow-sm lg:grid lg:grid-cols-9 min-h-[48px] w-full">
+            <TabsTrigger value="students" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+              <Users className="w-4 h-4 shrink-0" />
+              <span>Students</span>
             </TabsTrigger>
-            <TabsTrigger value="sessions" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <Layers className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Sessions
+            <TabsTrigger value="sessions" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+              <Layers className="w-4 h-4 shrink-0" />
+              <span>Sessions</span>
             </TabsTrigger>
-            <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <CreditCard className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Fees
+            <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+              <CreditCard className="w-4 h-4 shrink-0" />
+              <span>Fees</span>
             </TabsTrigger>
-            <TabsTrigger value="attendance" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <CalendarIcon className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Attendance
+            <TabsTrigger value="attendance" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+              <CalendarIcon className="w-4 h-4 shrink-0" />
+              <span>Attendance</span>
             </TabsTrigger>
-            <TabsTrigger value="achievements" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <Award className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Achievements
+            <TabsTrigger value="achievements" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+              <Award className="w-4 h-4 shrink-0" />
+              <span>Achievements</span>
             </TabsTrigger>
-            <TabsTrigger value="provisioning" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <KeyRound className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Provisioning
+            <TabsTrigger value="provisioning" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+              <KeyRound className="w-4 h-4 shrink-0" />
+              <span>Provisioning</span>
             </TabsTrigger>
-            <TabsTrigger value="notices" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <Bell className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Notices
+            <TabsTrigger value="notices" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+              <Bell className="w-4 h-4 shrink-0" />
+              <span>Notices</span>
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <Clock className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Calendar
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+              <Clock className="w-4 h-4 shrink-0" />
+              <span>Calendar</span>
             </TabsTrigger>
-            <TabsTrigger value="requests" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <FileText className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Requests
+            <TabsTrigger value="requests" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+              <FileText className="w-4 h-4 shrink-0" />
+              <span>Requests</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1132,8 +1132,8 @@ export default function Admin() {
                   </Button>
                 </div>
 
-                {/* Table */}
-                <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-sm">
+                {/* Desktop Table View */}
+                <div className="hidden md:block rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-sm">
                   <table className="w-full text-left text-xs sm:text-sm">
                     <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-semibold">
                       <tr>
@@ -1182,6 +1182,7 @@ export default function Admin() {
                               </td>
                               <td className="p-3 text-slate-600">{s.mobileNumber || "—"}</td>
                               <td className="p-3 font-mono text-xs text-slate-600">{s.samagraId || "—"}</td>
+                              <td className="p-3 font-mono text-xs text-slate-600">{s.dkNumber || "—"}</td>
                               <td className="p-3 font-semibold text-slate-800">
                                 {s.halfYearlyMarks !== undefined ? (
                                   <span className="font-mono text-amber-800">{s.halfYearlyMarks} <span className="text-[11px] text-slate-400 font-normal">/ 600</span></span>
@@ -1199,6 +1200,7 @@ export default function Admin() {
                                     variant="ghost"
                                     onClick={() => handleOpenEditStudent(s)}
                                     className="h-8 w-8 p-0 text-slate-600 hover:text-amber-600 hover:bg-amber-50"
+                                    aria-label={`Edit ${s.name}`}
                                   >
                                     <Pencil className="w-4 h-4" />
                                   </Button>
@@ -1207,6 +1209,7 @@ export default function Admin() {
                                     variant="ghost"
                                     onClick={() => setDeleteStudentId(s._id)}
                                     className="h-8 w-8 p-0 text-slate-600 hover:text-red-600 hover:bg-red-50"
+                                    aria-label={`Delete ${s.name}`}
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </Button>
@@ -1218,6 +1221,104 @@ export default function Admin() {
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Cards View */}
+                <div className="md:hidden space-y-3">
+                  {filteredStudents.length === 0 ? (
+                    <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                      No student records found.
+                    </div>
+                  ) : (
+                    filteredStudents.map((s) => {
+                      const hasSubjectBreakdown = Boolean(s.subjects?.halfYearly || s.subjects?.final);
+                      return (
+                        <div key={s._id} className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-3">
+                          {/* Header row: Roll No + Name + Class badge + Actions */}
+                          <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono font-bold text-xs bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md">
+                                  Roll #{s.rollNumber}
+                                </span>
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-800 text-xs font-semibold">
+                                  Class {s.class || "N/A"}
+                                </Badge>
+                                {!hasSubjectBreakdown && (
+                                  <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-300">
+                                    Total Only
+                                  </Badge>
+                                )}
+                              </div>
+                              <h4 className="font-bold text-base text-slate-900 mt-1">{s.name}</h4>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenEditStudent(s)}
+                                className="h-8 w-8 p-0 text-slate-600 hover:text-amber-700 hover:border-amber-400"
+                                aria-label={`Edit ${s.name}`}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setDeleteStudentId(s._id)}
+                                className="h-8 w-8 p-0 text-slate-600 hover:text-red-600 hover:border-red-300 hover:bg-red-50"
+                                aria-label={`Delete ${s.name}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Info Grid */}
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-slate-400 block text-[11px]">Category</span>
+                              <span className="font-medium text-slate-800">{s.category || "General"}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[11px]">Mobile</span>
+                              {s.mobileNumber ? (
+                                <a href={`tel:${s.mobileNumber}`} className="font-semibold text-amber-700 hover:underline">
+                                  {s.mobileNumber}
+                                </a>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[11px]">Samagra ID</span>
+                              <span className="font-mono text-slate-700">{s.samagraId || "—"}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[11px]">DK Number</span>
+                              <span className="font-mono text-slate-700">{s.dkNumber || "—"}</span>
+                            </div>
+                          </div>
+
+                          {/* Academic Marks Snapshot */}
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-lg">
+                            <div>
+                              <span className="text-slate-500 block text-[10px]">Half Yearly</span>
+                              <span className="font-bold text-amber-800 font-mono">
+                                {s.halfYearlyMarks !== undefined ? `${s.halfYearlyMarks} / 600` : "—"}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-slate-500 block text-[10px]">Final Marks</span>
+                              <span className="font-bold text-emerald-800 font-mono">
+                                {s.finalMarks !== undefined ? `${s.finalMarks} / 600` : "—"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1268,8 +1369,8 @@ export default function Admin() {
                 </div>
               </CardHeader>
               <CardContent className="pt-4">
-                {/* Fee Installments Table */}
-                <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-sm">
+                {/* Desktop Table View */}
+                <div className="hidden lg:block rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-sm">
                   <table className="w-full text-left text-xs sm:text-sm">
                     <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-semibold">
                       <tr>
@@ -1366,6 +1467,108 @@ export default function Admin() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile Cards View */}
+                <div className="lg:hidden space-y-3">
+                  {!allFees || allFees.length === 0 ? (
+                    <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                      No fee records assigned yet.
+                    </div>
+                  ) : (
+                    allFees.map((fee) => {
+                      const due = Math.max(0, fee.amount - fee.paidAmount);
+                      let statusBadge = (
+                        <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs">Pending</Badge>
+                      );
+                      if (fee.status === "paid") {
+                        statusBadge = (
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">Paid</Badge>
+                        );
+                      } else if (fee.status === "overdue") {
+                        statusBadge = (
+                          <Badge className="bg-red-100 text-red-800 border-red-300 text-xs">Overdue</Badge>
+                        );
+                      }
+
+                      return (
+                        <div key={fee._id} className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-3">
+                          {/* Header row */}
+                          <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono font-bold text-xs bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md">
+                                  Roll #{fee.rollNumber}
+                                </span>
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-800 text-xs font-semibold">
+                                  Class {fee.class}
+                                </Badge>
+                                <Badge variant="outline" className="border-slate-300 text-slate-700 font-semibold text-[10px]">
+                                  {fee.academicYear || "2025-26"}
+                                </Badge>
+                              </div>
+                              <h4 className="font-bold text-base text-slate-900 mt-1">{fee.studentName}</h4>
+                              <p className="text-xs text-slate-600 font-medium">{fee.title}</p>
+                            </div>
+                            <div className="shrink-0">
+                              {statusBadge}
+                            </div>
+                          </div>
+
+                          {/* 3-stat financial breakdown */}
+                          <div className="grid grid-cols-3 gap-2 text-center p-2.5 bg-slate-50 rounded-lg border border-slate-100 text-xs">
+                            <div>
+                              <span className="text-[10px] text-slate-500 block">Total</span>
+                              <span className="font-bold text-slate-900 font-mono">₹{fee.amount}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-emerald-700 block">Paid</span>
+                              <span className="font-bold text-emerald-700 font-mono">₹{fee.paidAmount}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-red-600 block">Due</span>
+                              <span className="font-bold text-red-600 font-mono">₹{due}</span>
+                            </div>
+                          </div>
+
+                          {/* Footer with Due date & Action buttons */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                            <span className="text-xs text-slate-500">
+                              Due Date: <span className="font-medium text-slate-800">{fee.dueDate}</span>
+                            </span>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedFeeForPayment(fee);
+                                  setPaymentForm({
+                                    paidAmount: String(fee.amount),
+                                    paymentDate: new Date().toISOString().split("T")[0],
+                                    paymentMode: "Cash",
+                                    remarks: "",
+                                  });
+                                  setPaymentModalOpen(true);
+                                }}
+                                className="flex-1 sm:flex-none bg-emerald-600 text-white hover:bg-emerald-700 h-9 text-xs font-semibold px-3 min-h-[38px]"
+                              >
+                                Record Payment
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                title="Delete Fee Record"
+                                aria-label="Delete Fee Record"
+                                onClick={() => setDeleteFeeId(fee._id)}
+                                className="h-9 w-9 p-0 text-slate-600 hover:text-red-600 hover:bg-red-50 shrink-0 min-h-[38px] min-w-[38px]"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1440,7 +1643,7 @@ export default function Admin() {
                   </div>
 
                   {/* Stats Badges */}
-                  <div className="flex items-center gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 w-full md:w-auto">
                     <div className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-center">
                       <span className="text-[10px] text-slate-500 block">Class Strength</span>
                       <span className="text-sm font-bold text-slate-900">{classStudents.length}</span>
@@ -1466,8 +1669,8 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* Class Student Attendance Table */}
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-xl">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                       <tr>
@@ -1566,6 +1769,100 @@ export default function Admin() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile Cards View */}
+                <div className="md:hidden space-y-3">
+                  {classStudents.length === 0 ? (
+                    <div className="p-6 text-center text-slate-500 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                      No students registered in Class {attendanceClass}.
+                    </div>
+                  ) : (
+                    classStudents.map((st) => {
+                      const currentVal = attendanceStatusMap[st._id] || { status: "present", remarks: "" };
+                      return (
+                        <div key={st._id} className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="font-mono font-bold text-xs bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md">
+                                Roll #{st.rollNumber}
+                              </span>
+                              <h4 className="font-bold text-sm text-slate-900 mt-1">{st.name}</h4>
+                            </div>
+                            <Badge variant="secondary" className="bg-slate-100 text-slate-800 text-xs">
+                              Class {st.class || attendanceClass}
+                            </Badge>
+                          </div>
+
+                          {/* 3-way toggle buttons */}
+                          <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAttendanceStatusMap((prev) => ({
+                                  ...prev,
+                                  [st._id]: { ...prev[st._id], status: "present" },
+                                }))
+                              }
+                              className={`py-2 text-xs font-bold rounded-md transition-all min-h-[38px] ${
+                                currentVal.status === "present"
+                                  ? "bg-emerald-600 text-white shadow-sm"
+                                  : "text-slate-600 hover:text-emerald-700 bg-white"
+                              }`}
+                            >
+                              Present
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAttendanceStatusMap((prev) => ({
+                                  ...prev,
+                                  [st._id]: { ...prev[st._id], status: "absent" },
+                                }))
+                              }
+                              className={`py-2 text-xs font-bold rounded-md transition-all min-h-[38px] ${
+                                currentVal.status === "absent"
+                                  ? "bg-red-600 text-white shadow-sm"
+                                  : "text-slate-600 hover:text-red-700 bg-white"
+                              }`}
+                            >
+                              Absent
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAttendanceStatusMap((prev) => ({
+                                  ...prev,
+                                  [st._id]: { ...prev[st._id], status: "leave" },
+                                }))
+                              }
+                              className={`py-2 text-xs font-bold rounded-md transition-all min-h-[38px] ${
+                                currentVal.status === "leave"
+                                  ? "bg-amber-600 text-white shadow-sm"
+                                  : "text-slate-600 hover:text-amber-700 bg-white"
+                              }`}
+                            >
+                              Leave
+                            </button>
+                          </div>
+
+                          {/* Remarks field */}
+                          <Input
+                            type="text"
+                            placeholder="Remarks / Note (optional)..."
+                            value={currentVal.remarks || ""}
+                            onChange={(e) =>
+                              setAttendanceStatusMap((prev) => ({
+                                ...prev,
+                                [st._id]: { ...prev[st._id], remarks: e.target.value },
+                              }))
+                            }
+                            className="bg-white border-slate-200 text-base sm:text-xs h-9"
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1626,7 +1923,8 @@ export default function Admin() {
                 </div>
               </CardHeader>
               <CardContent className="pt-4">
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                {/* Desktop Achievements Table */}
+                <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-xl">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                       <tr>
@@ -1697,6 +1995,74 @@ export default function Admin() {
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Achievements Cards */}
+                <div className="md:hidden space-y-3">
+                  {(allAchievements || []).length === 0 ? (
+                    <div className="p-6 text-center text-slate-500 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                      No achievements logged yet. Click "Add Achievement" to log a student award.
+                    </div>
+                  ) : (
+                    (allAchievements || []).map((ach: any) => (
+                      <div key={ach._id} className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono font-bold text-xs bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded">
+                                Roll #{ach.rollNumber}
+                              </span>
+                              <Badge variant="secondary" className="text-[10px]">
+                                Class {ach.class}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px] border-amber-300 bg-amber-50 text-amber-800">
+                                {ach.academicYear || "2025-26"}
+                              </Badge>
+                            </div>
+                            <h4 className="font-bold text-sm text-slate-900 mt-1">{ach.studentName}</h4>
+                          </div>
+                          <span className="text-[11px] text-slate-400 shrink-0">{ach.date}</span>
+                        </div>
+
+                        <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                          <p className="font-bold text-xs text-[#0a2540]">{ach.title}</p>
+                          {ach.description && (
+                            <p className="text-xs text-slate-600 mt-1 line-clamp-3">{ach.description}</p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingAchievementId(ach._id);
+                              setAchievementForm({
+                                studentId: ach.studentId,
+                                title: ach.title,
+                                description: ach.description,
+                                date: ach.date,
+                                certificateUrl: ach.certificateUrl || ach.imageUrl || "",
+                                academicYear: ach.academicYear || currentSession?.year || "2025-26",
+                              });
+                              setAchievementModalOpen(true);
+                            }}
+                            className="h-8 text-xs border-slate-200 text-slate-700 hover:text-amber-600"
+                          >
+                            <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setDeleteAchievementId(ach._id)}
+                            className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1786,7 +2152,8 @@ export default function Admin() {
                 {/* Sessions List Table */}
                 <div className="space-y-3">
                   <h4 className="font-bold text-sm text-[#0a2540]">All Academic Sessions</h4>
-                  <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm">
+                  {/* Desktop Table */}
+                  <div className="hidden sm:block overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm">
                     <table className="w-full text-left text-xs sm:text-sm">
                       <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                         <tr>
@@ -1852,6 +2219,55 @@ export default function Admin() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile Sessions Cards */}
+                  <div className="sm:hidden space-y-2.5">
+                    {(allSessions || []).length === 0 ? (
+                      <div className="p-6 text-center text-slate-500 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                        No academic sessions created yet.
+                      </div>
+                    ) : (
+                      (allSessions || []).map((ses) => (
+                        <div key={ses._id} className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold font-mono text-lg text-[#0a2540]">{ses.year}</span>
+                            {ses.isCurrent ? (
+                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-bold text-xs">
+                                Active Session
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-slate-600 border-slate-300 text-xs">
+                                Archived
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 font-mono">
+                            Duration: {ses.startDate || "2025-04-01"} &rarr; {ses.endDate || "2026-03-31"}
+                          </p>
+                          {!ses.isCurrent && (
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleSetCurrentSession(ses)}
+                                className="text-xs border-emerald-300 text-emerald-800 hover:bg-emerald-50 font-bold h-8"
+                              >
+                                Set as Active
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteSession(ses._id, ses.year)}
+                                className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -2095,7 +2511,7 @@ export default function Admin() {
 
       {/* DIALOG 1: ADD/EDIT STUDENT MODAL */}
       <Dialog open={studentModalOpen} onOpenChange={setStudentModalOpen}>
-        <DialogContent className="max-w-2xl bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-2xl bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#0a2540]">
               {editingStudentId ? "Edit Student Profile" : "Add New Student Record"}
@@ -2354,11 +2770,11 @@ export default function Admin() {
               })()}
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-200">
-              <Button type="button" variant="outline" onClick={() => setStudentModalOpen(false)}>
+            <DialogFooter className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setStudentModalOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
+              <Button type="submit" className="w-full sm:w-auto bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
                 Save Student Record
               </Button>
             </DialogFooter>
@@ -2368,7 +2784,7 @@ export default function Admin() {
 
       {/* DIALOG 2: ASSIGN FEE INSTALLMENT */}
       <Dialog open={feeModalOpen} onOpenChange={setFeeModalOpen}>
-        <DialogContent className="max-w-md bg-white border-slate-200 text-slate-900">
+        <DialogContent className="w-[95vw] sm:max-w-md bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#0a2540]">Assign Fee Installment</DialogTitle>
             <DialogDescription className="text-slate-500 text-xs">
@@ -2475,11 +2891,11 @@ export default function Admin() {
               </div>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-200">
-              <Button type="button" variant="outline" onClick={() => setFeeModalOpen(false)}>
+            <DialogFooter className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setFeeModalOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
+              <Button type="submit" className="w-full sm:w-auto bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
                 Assign Installment
               </Button>
             </DialogFooter>
@@ -2489,7 +2905,7 @@ export default function Admin() {
 
       {/* DIALOG 3: RECORD PAYMENT */}
       <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
-        <DialogContent className="max-w-md bg-white border-slate-200 text-slate-900">
+        <DialogContent className="w-[95vw] sm:max-w-md bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#0a2540]">Record Fee Payment</DialogTitle>
             <DialogDescription className="text-slate-500 text-xs">
@@ -2546,11 +2962,11 @@ export default function Admin() {
               />
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-200">
-              <Button type="button" variant="outline" onClick={() => setPaymentModalOpen(false)}>
+            <DialogFooter className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setPaymentModalOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-emerald-600 text-white hover:bg-emerald-700 font-bold">
+              <Button type="submit" className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-700 font-bold">
                 Confirm & Save Payment
               </Button>
             </DialogFooter>
@@ -2560,7 +2976,7 @@ export default function Admin() {
 
       {/* DIALOG 4: ADD/EDIT NOTICE */}
       <Dialog open={noticeModalOpen} onOpenChange={setNoticeModalOpen}>
-        <DialogContent className="max-w-md bg-white border-slate-200 text-slate-900">
+        <DialogContent className="w-[95vw] sm:max-w-md bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#0a2540]">
               {editingNoticeId ? "Edit Notice" : "Add School Announcement"}
@@ -2613,11 +3029,11 @@ export default function Admin() {
                 </label>
               </div>
             </div>
-            <DialogFooter className="pt-4 border-t border-slate-200">
-              <Button type="button" variant="outline" onClick={() => setNoticeModalOpen(false)}>
+            <DialogFooter className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setNoticeModalOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
+              <Button type="submit" className="w-full sm:w-auto bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
                 Save Notice
               </Button>
             </DialogFooter>
@@ -2627,7 +3043,7 @@ export default function Admin() {
 
       {/* DIALOG 5: ADD/EDIT CALENDAR EVENT */}
       <Dialog open={calendarModalOpen} onOpenChange={setCalendarModalOpen}>
-        <DialogContent className="max-w-md bg-white border-slate-200 text-slate-900">
+        <DialogContent className="w-[95vw] sm:max-w-md bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#0a2540]">
               {editingCalendarId ? "Edit Calendar Event" : "Add Calendar Event"}
@@ -2684,11 +3100,11 @@ export default function Admin() {
                 className="bg-white border-slate-300 text-slate-900"
               />
             </div>
-            <DialogFooter className="pt-4 border-t border-slate-200">
-              <Button type="button" variant="outline" onClick={() => setCalendarModalOpen(false)}>
+            <DialogFooter className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setCalendarModalOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
+              <Button type="submit" className="w-full sm:w-auto bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
                 Save Event
               </Button>
             </DialogFooter>
@@ -2698,15 +3114,15 @@ export default function Admin() {
 
       {/* ALERT DIALOGS FOR DELETE CONFIRMATION */}
       <AlertDialog open={Boolean(deleteStudentId)} onOpenChange={() => setDeleteStudentId(null)}>
-        <AlertDialogContent className="bg-white border-slate-200 text-slate-900">
+        <AlertDialogContent className="w-[95vw] sm:max-w-md bg-white border-slate-200 text-slate-900 p-4 sm:p-6 rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Student Record?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-500">
               This action cannot be undone. This will permanently delete the student's profile.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (deleteStudentId) {
@@ -2715,7 +3131,7 @@ export default function Admin() {
                   setDeleteStudentId(null);
                 }
               }}
-              className="bg-red-600 text-white hover:bg-red-700"
+              className="w-full sm:w-auto bg-red-600 text-white hover:bg-red-700"
             >
               Delete Student
             </AlertDialogAction>
@@ -2724,15 +3140,15 @@ export default function Admin() {
       </AlertDialog>
 
       <AlertDialog open={Boolean(deleteNoticeId)} onOpenChange={() => setDeleteNoticeId(null)}>
-        <AlertDialogContent className="bg-white border-slate-200 text-slate-900">
+        <AlertDialogContent className="w-[95vw] sm:max-w-md bg-white border-slate-200 text-slate-900 p-4 sm:p-6 rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Notice?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-500">
               This will remove the notice from the school website.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (deleteNoticeId) {
@@ -2741,7 +3157,7 @@ export default function Admin() {
                   setDeleteNoticeId(null);
                 }
               }}
-              className="bg-red-600 text-white hover:bg-red-700"
+              className="w-full sm:w-auto bg-red-600 text-white hover:bg-red-700"
             >
               Delete Notice
             </AlertDialogAction>
@@ -2750,15 +3166,15 @@ export default function Admin() {
       </AlertDialog>
 
       <AlertDialog open={Boolean(deleteFeeId)} onOpenChange={() => setDeleteFeeId(null)}>
-        <AlertDialogContent className="bg-white border-slate-200 text-slate-900">
+        <AlertDialogContent className="w-[95vw] sm:max-w-md bg-white border-slate-200 text-slate-900 p-4 sm:p-6 rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Fee Record?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-500">
               This action cannot be undone. This will permanently remove this fee record.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (deleteFeeId) {
@@ -2772,7 +3188,7 @@ export default function Admin() {
                   }
                 }
               }}
-              className="bg-red-600 text-white hover:bg-red-700"
+              className="w-full sm:w-auto bg-red-600 text-white hover:bg-red-700"
             >
               Delete Fee Record
             </AlertDialogAction>
@@ -2782,7 +3198,7 @@ export default function Admin() {
 
       {/* DIALOG 6: ADD/EDIT ACHIEVEMENT */}
       <Dialog open={achievementModalOpen} onOpenChange={setAchievementModalOpen}>
-        <DialogContent className="max-w-lg bg-white border-slate-200 text-slate-900">
+        <DialogContent className="w-[95vw] sm:max-w-lg bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#0a2540] flex items-center gap-2">
               <Award className="w-5 h-5 text-amber-600" />
@@ -2883,11 +3299,11 @@ export default function Admin() {
               />
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-100">
-              <Button type="button" variant="outline" onClick={() => setAchievementModalOpen(false)}>
+            <DialogFooter className="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setAchievementModalOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600">
+              <Button type="submit" className="w-full sm:w-auto bg-amber-500 text-slate-950 font-bold hover:bg-amber-600">
                 {editingAchievementId ? "Update Achievement" : "Save Achievement"}
               </Button>
             </DialogFooter>
@@ -2897,7 +3313,7 @@ export default function Admin() {
 
       {/* DIALOG 7: CREATE ACADEMIC SESSION */}
       <Dialog open={sessionModalOpen} onOpenChange={setSessionModalOpen}>
-        <DialogContent className="max-w-md bg-white border-slate-200 text-slate-900">
+        <DialogContent className="w-[95vw] sm:max-w-md bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#0a2540] flex items-center gap-2">
               <Layers className="w-5 h-5 text-amber-600" />
@@ -2956,11 +3372,11 @@ export default function Admin() {
               </label>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-200">
-              <Button type="button" variant="outline" onClick={() => setSessionModalOpen(false)}>
+            <DialogFooter className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setSessionModalOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
+              <Button type="submit" className="w-full sm:w-auto bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
                 Create Session
               </Button>
             </DialogFooter>
@@ -2969,16 +3385,16 @@ export default function Admin() {
       </Dialog>
 
       <AlertDialog open={Boolean(deleteAchievementId)} onOpenChange={() => setDeleteAchievementId(null)}>
-        <AlertDialogContent className="bg-white border-slate-200 text-slate-900">
+        <AlertDialogContent className="w-[95vw] sm:max-w-md bg-white border-slate-200 text-slate-900 p-4 sm:p-6 rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-red-600">Delete Achievement?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-600 text-xs">
               Are you sure you want to permanently remove this achievement record? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteAchievement} className="bg-red-600 text-white hover:bg-red-700">
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAchievement} className="w-full sm:w-auto bg-red-600 text-white hover:bg-red-700">
               Delete Record
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -2987,7 +3403,7 @@ export default function Admin() {
 
       {/* DIALOG: PIN AUTHENTICATION FOR FEE SUMMARY */}
       <Dialog open={pinModalOpen} onOpenChange={setPinModalOpen}>
-        <DialogContent className="max-w-sm bg-white border-slate-200 text-slate-900">
+        <DialogContent className="w-[95vw] sm:max-w-sm bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <div className="mx-auto w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center mb-2">
               <Lock className="w-5 h-5 text-amber-700" />
@@ -3017,7 +3433,7 @@ export default function Admin() {
                 <p className="text-xs text-red-600 font-semibold text-center mt-1">{pinError}</p>
               )}
             </div>
-            <DialogFooter className="pt-2 flex flex-col sm:flex-row gap-2">
+            <DialogFooter className="pt-2 flex flex-col-reverse sm:flex-row gap-2">
               <Button
                 type="button"
                 variant="outline"

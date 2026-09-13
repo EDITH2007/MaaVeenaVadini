@@ -216,10 +216,11 @@ export default function Landing() {
 
             {/* Mobile menu button */}
             <button
-              className="md:hidden p-2"
+              className="md:hidden p-2.5 rounded-lg text-primary-foreground hover:bg-primary-foreground/10 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle navigation menu"
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
@@ -231,30 +232,30 @@ export default function Landing() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="md:hidden border-t border-primary-foreground/20 overflow-hidden"
+              className="md:hidden border-t border-primary-foreground/20 overflow-hidden bg-primary/95 backdrop-blur-sm"
             >
-              <div className="px-4 py-4 space-y-3">
+              <div className="px-4 py-4 space-y-2">
                 {["home", "about", "notices", "contact"].map((item) => (
                   <button
                     key={item}
                     onClick={() => scrollTo(item)}
-                    className="block w-full text-left capitalize py-2 hover:text-accent transition-colors"
+                    className="block w-full text-left capitalize py-2.5 px-3 rounded-lg font-medium text-sm hover:bg-primary-foreground/10 hover:text-accent transition-colors"
                   >
                     {item}
                   </button>
                 ))}
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-3 border-t border-primary-foreground/15">
                   <Button
-                    size="sm"
-                    variant="ghost"
-                    className="flex-1 text-primary-foreground hover:bg-primary-foreground/10"
+                    size="default"
+                    variant="outlineWhite"
+                    className="flex-1 min-h-[44px] font-semibold text-sm"
                     onClick={() => { navigate("/student"); setMobileMenuOpen(false); }}
                   >
                     Student Login
                   </Button>
                   <Button
-                    size="sm"
-                    className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+                    size="default"
+                    className="flex-1 min-h-[44px] bg-accent text-accent-foreground font-bold hover:bg-accent/90 text-sm shadow-sm"
                     onClick={() => { navigate("/admin"); setMobileMenuOpen(false); }}
                   >
                     Admin
@@ -276,29 +277,29 @@ export default function Landing() {
           }}
         />
         <div className="absolute inset-0 bg-primary/80" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-36">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 md:py-36">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
             className="text-center text-primary-foreground"
           >
-            <Badge className="mb-6 bg-accent text-accent-foreground text-sm px-4 py-1">
+            <Badge className="mb-4 sm:mb-6 bg-accent text-accent-foreground text-xs sm:text-sm px-3 sm:px-4 py-1">
               Est. 2011
             </Badge>
-            <h1 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold mb-4 sm:mb-6 leading-tight">
               Maa Veena Vadini
               <br />
               <span className="text-accent">Upper Primary School</span>
             </h1>
-            <p className="text-lg md:text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-10">
+            <p className="text-base sm:text-lg md:text-xl text-primary-foreground/85 max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
               Nurturing young minds from Class 1 to 8 with quality education, values, and a
               commitment to excellence in every child's journey.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center max-w-xs sm:max-w-none mx-auto">
               <Button
                 size="lg"
-                className="bg-accent text-accent-foreground hover:bg-accent/90 text-base px-8"
+                className="bg-accent text-accent-foreground hover:bg-accent/90 text-sm sm:text-base px-8 min-h-[48px] font-bold shadow-md"
                 onClick={() => navigate("/student")}
               >
                 Student Login
@@ -307,7 +308,7 @@ export default function Landing() {
               <Button
                 size="lg"
                 variant="outlineWhite"
-                className="border-2 border-white/60 bg-white/10 backdrop-blur-xs text-white hover:bg-white hover:text-[#0a2540] text-base px-8 font-semibold shadow-md transition-all"
+                className="border-2 border-white/60 bg-white/10 backdrop-blur-xs text-white hover:bg-white hover:text-[#0a2540] text-sm sm:text-base px-8 min-h-[48px] font-semibold shadow-md transition-all"
                 onClick={() => scrollTo("about")}
               >
                 Learn More
@@ -374,7 +375,7 @@ export default function Landing() {
 
         {/* Notice Detail Modal */}
         <Dialog open={selectedNotice !== null} onOpenChange={(open) => !open && setSelectedNotice(null)}>
-          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[94vw] max-w-xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
             {selectedNotice && (
               <>
                 {selectedNotice.imageUrl && (
@@ -471,7 +472,7 @@ export default function Landing() {
             <h2 className="text-3xl font-bold mb-4">School Life</h2>
             <p className="text-muted-foreground">A glimpse into our vibrant school community</p>
           </motion.div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-4">
             {[
               "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=600&q=80",
               "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=600&q=80",
@@ -584,11 +585,11 @@ export default function Landing() {
             <p className="text-primary-foreground/60 text-xs text-center">
               © {new Date().getFullYear()} Maa Veena vadini Upper Primary School. All rights reserved.
             </p>
-            <div className="flex gap-4 text-sm">
-              <button onClick={() => navigate("/student")} className="hover:text-accent transition-colors text-xs">
+            <div className="flex gap-4 text-sm items-center">
+              <button onClick={() => navigate("/student")} className="hover:text-accent transition-colors text-xs py-2 px-1 min-h-[44px] flex items-center">
                 Student Portal
               </button>
-              <button onClick={() => navigate("/admin")} className="hover:text-accent transition-colors text-xs">
+              <button onClick={() => navigate("/admin")} className="hover:text-accent transition-colors text-xs py-2 px-1 min-h-[44px] flex items-center">
                 Admin
               </button>
             </div>

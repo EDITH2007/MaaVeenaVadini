@@ -138,29 +138,31 @@ export default function StudentDashboard() {
       <div className="min-h-screen bg-[#f5f7fa] text-slate-900 flex flex-col font-sans">
         {/* Navbar */}
         <header className="bg-[#0a2540] text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
-              <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-amber-400" />
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 sm:gap-3 cursor-pointer min-w-0" onClick={() => navigate("/")}>
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+                <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
               </div>
-              <div>
-                <h1 className="font-bold text-white text-base">Maa Veena Vadini Upper Primary School</h1>
-                <p className="text-xs text-slate-300">Student Portal & Result Lookup</p>
+              <div className="min-w-0">
+                <h1 className="font-bold text-white text-xs sm:text-base leading-tight truncate sm:whitespace-normal">
+                  Maa Veena Vadini School
+                </h1>
+                <p className="text-[10px] sm:text-xs text-slate-300 truncate">Student Portal & Result Lookup</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <Button
                 variant="outlineWhite"
                 size="sm"
                 onClick={() => navigate("/")}
-                className="font-medium"
+                className="font-medium text-xs sm:text-sm px-2.5 sm:px-3 min-h-[36px]"
               >
-                <ArrowLeft className="w-4 h-4 mr-1" /> Home
+                <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Home
               </Button>
               <Button
                 size="sm"
                 onClick={() => navigate("/auth")}
-                className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600"
+                className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600 text-xs sm:text-sm px-2.5 sm:px-3 min-h-[36px]"
               >
                 Sign In
               </Button>
@@ -260,20 +262,20 @@ export default function StudentDashboard() {
     <div className="min-h-screen bg-[#f5f7fa] text-slate-900 flex flex-col font-sans">
       {/* Top Banner Header - Navy Bar matching public site */}
       <header className="bg-[#0a2540] text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
-            <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center p-2">
-              <GraduationCap className="w-6 h-6 text-amber-400" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3 cursor-pointer min-w-0" onClick={() => navigate("/")}>
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center p-1.5 sm:p-2 shrink-0">
+              <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
             </div>
-            <div>
-              <h1 className="font-bold text-white text-base leading-tight">
-                Maa Veena Vadini Upper Primary School
+            <div className="min-w-0">
+              <h1 className="font-bold text-white text-xs sm:text-base leading-tight truncate sm:whitespace-normal">
+                Maa Veena Vadini School
               </h1>
-              <p className="text-xs text-slate-300">Authenticated Student Dashboard</p>
+              <p className="text-[10px] sm:text-xs text-slate-300 truncate">Authenticated Student Dashboard</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outlineWhite"
               size="sm"
@@ -281,9 +283,9 @@ export default function StudentDashboard() {
                 signOut();
                 navigate("/");
               }}
-              className="font-medium"
+              className="font-medium text-xs sm:text-sm px-2.5 sm:px-3 min-h-[36px]"
             >
-              <LogOut className="w-4 h-4 mr-1.5" /> Sign Out
+              <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sign Out
             </Button>
           </div>
         </div>
@@ -317,24 +319,24 @@ export default function StudentDashboard() {
 
         {/* Tabbed Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl grid grid-cols-3 sm:grid-cols-6 gap-1 shadow-sm">
-            <TabsTrigger value="profile" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <User className="w-4 h-4 mr-1.5 hidden sm:inline" /> Profile
+          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl flex overflow-x-auto no-scrollbar gap-1.5 shadow-sm sm:grid sm:grid-cols-6 min-h-[48px] w-full">
+            <TabsTrigger value="profile" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+              <User className="w-4 h-4 shrink-0" /> <span>Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="results" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <BookOpen className="w-4 h-4 mr-1.5 hidden sm:inline" /> Results
+            <TabsTrigger value="results" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+              <BookOpen className="w-4 h-4 shrink-0" /> <span>Results</span>
             </TabsTrigger>
-            <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <CreditCard className="w-4 h-4 mr-1.5 hidden sm:inline" /> Fees
+            <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+              <CreditCard className="w-4 h-4 shrink-0" /> <span>Fees</span>
             </TabsTrigger>
-            <TabsTrigger value="attendance" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <CalendarIcon className="w-4 h-4 mr-1.5 hidden sm:inline" /> Attendance
+            <TabsTrigger value="attendance" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+              <CalendarIcon className="w-4 h-4 shrink-0" /> <span>Attendance</span>
             </TabsTrigger>
-            <TabsTrigger value="achievements" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <Award className="w-4 h-4 mr-1.5 hidden sm:inline" /> Achievements
+            <TabsTrigger value="achievements" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+              <Award className="w-4 h-4 shrink-0" /> <span>Achievements</span>
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
-              <Clock className="w-4 h-4 mr-1.5 hidden sm:inline" /> Calendar
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+              <Clock className="w-4 h-4 shrink-0" /> <span>Calendar</span>
             </TabsTrigger>
           </TabsList>
 
@@ -540,7 +542,8 @@ export default function StudentDashboard() {
                           </div>
                         )}
 
-                        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                        {/* Desktop Table View */}
+                        <div className="hidden sm:block border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
                           <table className="w-full text-xs sm:text-sm text-left">
                             <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-semibold">
                               <tr>
@@ -589,6 +592,49 @@ export default function StudentDashboard() {
                             </tbody>
                           </table>
                         </div>
+
+                        {/* Mobile Cards View */}
+                        <div className="sm:hidden space-y-2.5">
+                          {activeSubjects.map((sub: any) => {
+                            const val = hyData.subjects?.[sub.key];
+                            const g = getGrade(val);
+                            return (
+                              <div key={sub.key} className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+                                <div>
+                                  <p className="font-bold text-sm text-slate-900">{sub.label}</p>
+                                  <p className="text-[11px] text-slate-500 font-mono mt-0.5">Max Marks: 100</p>
+                                </div>
+                                <div className="flex items-center gap-2.5">
+                                  <div className="text-right">
+                                    <span className="font-bold text-sm text-slate-900 font-mono">{val !== undefined ? val : "—"}</span>
+                                    <span className="text-[10px] text-slate-400">/100</span>
+                                  </div>
+                                  {g ? (
+                                    <Badge className={`${g.color} text-xs font-bold`}>{g.grade}</Badge>
+                                  ) : (
+                                    <span className="text-slate-400 text-xs">—</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200 shadow-xs flex items-center justify-between">
+                            <div>
+                              <p className="font-bold text-xs text-slate-700 uppercase">Half Yearly Total</p>
+                              <p className="text-[11px] text-slate-500 font-mono">Max: {hyMax}</p>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                              <span className="font-bold text-base text-amber-700 font-mono">
+                                {hyData.total !== undefined ? hyData.total : "N/A"}
+                              </span>
+                              {hyData.total !== undefined && (
+                                <Badge className={`${getGrade(Math.round((hyData.total / hyMax) * 100))?.color || ""} text-xs`}>
+                                  {getGrade(Math.round((hyData.total / hyMax) * 100))?.grade}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {/* 2. FINAL EXAMINATION TABLE */}
@@ -619,7 +665,8 @@ export default function StudentDashboard() {
                           </div>
                         )}
 
-                        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                        {/* Desktop Table View */}
+                        <div className="hidden sm:block border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
                           <table className="w-full text-xs sm:text-sm text-left">
                             <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-semibold">
                               <tr>
@@ -667,6 +714,49 @@ export default function StudentDashboard() {
                               </tr>
                             </tbody>
                           </table>
+                        </div>
+
+                        {/* Mobile Cards View */}
+                        <div className="sm:hidden space-y-2.5">
+                          {activeSubjects.map((sub: any) => {
+                            const val = fnData.subjects?.[sub.key];
+                            const g = getGrade(val);
+                            return (
+                              <div key={sub.key} className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+                                <div>
+                                  <p className="font-bold text-sm text-slate-900">{sub.label}</p>
+                                  <p className="text-[11px] text-slate-500 font-mono mt-0.5">Max Marks: 100</p>
+                                </div>
+                                <div className="flex items-center gap-2.5">
+                                  <div className="text-right">
+                                    <span className="font-bold text-sm text-slate-900 font-mono">{val !== undefined ? val : "—"}</span>
+                                    <span className="text-[10px] text-slate-400">/100</span>
+                                  </div>
+                                  {g ? (
+                                    <Badge className={`${g.color} text-xs font-bold`}>{g.grade}</Badge>
+                                  ) : (
+                                    <span className="text-slate-400 text-xs">—</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200 shadow-xs flex items-center justify-between">
+                            <div>
+                              <p className="font-bold text-xs text-slate-700 uppercase">Final Total</p>
+                              <p className="text-[11px] text-slate-500 font-mono">Max: {fnMax}</p>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                              <span className="font-bold text-base text-emerald-700 font-mono">
+                                {fnData.total !== undefined ? fnData.total : "N/A"}
+                              </span>
+                              {fnData.total !== undefined && (
+                                <Badge className={`${getGrade(Math.round((fnData.total / fnMax) * 100))?.color || ""} text-xs`}>
+                                  {getGrade(Math.round((fnData.total / fnMax) * 100))?.grade}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </>
@@ -841,40 +931,66 @@ export default function StudentDashboard() {
                 <div className="space-y-3 pt-2">
                   <h4 className="font-bold text-sm text-[#0a2540]">Daily Attendance Log</h4>
                   {attendance && attendance.length > 0 ? (
-                    <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
-                          <tr>
-                            <th className="p-3">Date</th>
-                            <th className="p-3">Status</th>
-                            <th className="p-3">Remarks / Notes</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {attendance.map((att: any) => (
-                            <tr key={att._id} className="hover:bg-slate-50/80">
-                              <td className="p-3 font-mono font-medium text-slate-900">{att.date}</td>
-                              <td className="p-3">
-                                <Badge
-                                  className={
-                                    att.status === "present"
-                                      ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold capitalize"
-                                      : att.status === "absent"
-                                      ? "bg-red-100 text-red-800 border-red-300 font-bold capitalize"
-                                      : "bg-amber-100 text-amber-800 border-amber-300 font-bold capitalize"
-                                  }
-                                >
-                                  {att.status}
-                                </Badge>
-                              </td>
-                              <td className="p-3 text-slate-600">
-                                {att.remarks ? att.remarks : <span className="text-slate-400">—</span>}
-                              </td>
+                    <>
+                      {/* Desktop Table */}
+                      <div className="hidden sm:block overflow-x-auto border border-slate-200 rounded-xl">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                            <tr>
+                              <th className="p-3">Date</th>
+                              <th className="p-3">Status</th>
+                              <th className="p-3">Remarks / Notes</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {attendance.map((att: any) => (
+                              <tr key={att._id} className="hover:bg-slate-50/80">
+                                <td className="p-3 font-mono font-medium text-slate-900">{att.date}</td>
+                                <td className="p-3">
+                                  <Badge
+                                    className={
+                                      att.status === "present"
+                                        ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold capitalize"
+                                        : att.status === "absent"
+                                        ? "bg-red-100 text-red-800 border-red-300 font-bold capitalize"
+                                        : "bg-amber-100 text-amber-800 border-amber-300 font-bold capitalize"
+                                    }
+                                  >
+                                    {att.status}
+                                  </Badge>
+                                </td>
+                                <td className="p-3 text-slate-600">
+                                  {att.remarks ? att.remarks : <span className="text-slate-400">—</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Mobile Cards */}
+                      <div className="sm:hidden space-y-2">
+                        {attendance.map((att: any) => (
+                          <div key={att._id} className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+                            <div>
+                              <p className="font-mono font-bold text-xs text-slate-900">{att.date}</p>
+                              {att.remarks && <p className="text-[11px] text-slate-500 mt-0.5">{att.remarks}</p>}
+                            </div>
+                            <Badge
+                              className={
+                                att.status === "present"
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold capitalize text-xs"
+                                  : att.status === "absent"
+                                  ? "bg-red-100 text-red-800 border-red-300 font-bold capitalize text-xs"
+                                  : "bg-amber-100 text-amber-800 border-amber-300 font-bold capitalize text-xs"
+                              }
+                            >
+                              {att.status}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   ) : (
                     <div className="p-6 text-center bg-slate-50 rounded-xl border border-slate-200 text-slate-500">
                       <CalendarIcon className="w-8 h-8 mx-auto text-slate-400 mb-2" />
@@ -1026,7 +1142,7 @@ export default function StudentDashboard() {
 
       {/* Profile Change Request Modal */}
       <Dialog open={changeModalOpen} onOpenChange={setChangeModalOpen}>
-        <DialogContent className="bg-white border-slate-200 text-slate-900 max-w-md">
+        <DialogContent className="bg-white border-slate-200 text-slate-900 w-[94vw] max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg text-[#0a2540] flex items-center gap-2">
               <Send className="w-5 h-5 text-amber-600" />
@@ -1046,17 +1162,17 @@ export default function StudentDashboard() {
                 placeholder="Explain what information needs correction (e.g., Update Date of Birth or spelling of Name)..."
                 value={requestDetails}
                 onChange={(e) => setRequestDetails(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white border-slate-300 text-slate-900 text-base sm:text-sm"
               />
             </div>
-            <DialogFooter className="pt-4 border-t border-slate-200">
-              <Button type="button" variant="outline" onClick={() => setChangeModalOpen(false)}>
+            <DialogFooter className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setChangeModalOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold"
+                className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold w-full sm:w-auto"
               >
                 {isSubmitting ? "Submitting..." : "Submit Correction Request"}
               </Button>
