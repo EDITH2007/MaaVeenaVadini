@@ -116,6 +116,60 @@ export const listStudents = query({
   },
 });
 
+async function syncStudentAuthAccount(ctx: any, student: any) {
+  const rollNumber = student.rollNumber.toUpperCase().trim();
+  const email = `${rollNumber.toLowerCase()}@mvvs.in`;
+  const dob = student.dateOfBirth?.trim() || "2015-01-01";
+
+  let user = await ctx.db
+    .query("users")
+    .withIndex("email", (q: any) => q.eq("email", email))
+    .unique();
+
+  if (!user) {
+    const userId = await ctx.db.insert("users", {
+      email,
+      role: "student",
+      name: student.name,
+      studentId: student._id,
+      rollNumber,
+    });
+    user = await ctx.db.get(userId);
+  } else {
+    await ctx.db.patch(user._id, {
+      studentId: student._id,
+      rollNumber,
+      role: "student",
+    });
+  }
+
+  if (user) {
+    const scrypt = new Scrypt();
+    const hashedPassword = await scrypt.hash(dob);
+
+    const existingAccount = await ctx.db
+      .query("authAccounts")
+      .withIndex("providerAndAccountId", (q: any) =>
+        q.eq("provider", "password").eq("providerAccountId", email)
+      )
+      .unique();
+
+    if (existingAccount) {
+      await ctx.db.patch(existingAccount._id, {
+        secret: hashedPassword,
+        userId: user._id,
+      });
+    } else {
+      await ctx.db.insert("authAccounts", {
+        userId: user._id,
+        provider: "password",
+        providerAccountId: email,
+        secret: hashedPassword,
+      });
+    }
+  }
+}
+
 export const addStudent = mutation({
   args: {
     name: v.string(),
@@ -142,11 +196,16 @@ export const addStudent = mutation({
       throw new Error("A student with this roll number already exists.");
     }
     const dob = args.dateOfBirth?.trim() || "2015-01-01";
-    return await ctx.db.insert("students", {
+    const studentId = await ctx.db.insert("students", {
       ...args,
       rollNumber: normalizedRoll,
       dateOfBirth: dob,
     });
+    const student = await ctx.db.get(studentId);
+    if (student) {
+      await syncStudentAuthAccount(ctx, student);
+    }
+    return studentId;
   },
 });
 
@@ -169,10 +228,17 @@ export const updateStudent = mutation({
   handler: async (ctx, args) => {
     await checkAdmin(ctx);
     const { id, ...rest } = args;
+    const normalizedRoll = rest.rollNumber.toUpperCase().trim();
+    const dob = rest.dateOfBirth?.trim() || "2015-01-01";
     await ctx.db.patch(id, {
       ...rest,
-      rollNumber: rest.rollNumber.toUpperCase().trim(),
+      rollNumber: normalizedRoll,
+      dateOfBirth: dob,
     });
+    const updatedStudent = await ctx.db.get(id);
+    if (updatedStudent) {
+      await syncStudentAuthAccount(ctx, updatedStudent);
+    }
   },
 });
 
@@ -191,14 +257,33 @@ export const autoProvisionAllStudents = mutation({
     const students = await ctx.db.query("students").take(500);
     let updatedCount = 0;
     for (const student of students) {
-      const updates: any = {};
-      if (!student.dateOfBirth) {
-        updates.dateOfBirth = "2015-01-01";
+      let dob = student.dateOfBirth?.trim();
+      if (!dob) {
+        dob = "2015-01-01";
+        await ctx.db.patch(student._id, { dateOfBirth: dob });
+        student.dateOfBirth = dob;
       }
-      if (Object.keys(updates).length > 0) {
-        await ctx.db.patch(student._id, updates);
-        updatedCount++;
+      await syncStudentAuthAccount(ctx, student);
+      updatedCount++;
+    }
+    return { total: students.length, updated: updatedCount };
+  },
+});
+
+export const autoProvisionAllStudentsInternal = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const students = await ctx.db.query("students").take(500);
+    let updatedCount = 0;
+    for (const student of students) {
+      let dob = student.dateOfBirth?.trim();
+      if (!dob) {
+        dob = "2015-01-01";
+        await ctx.db.patch(student._id, { dateOfBirth: dob });
+        student.dateOfBirth = dob;
       }
+      await syncStudentAuthAccount(ctx, student);
+      updatedCount++;
     }
     return { total: students.length, updated: updatedCount };
   },

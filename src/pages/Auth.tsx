@@ -39,7 +39,10 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
 
   const handleStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rollOrEmail || !studentPassword) {
+    const trimmedRollOrEmail = rollOrEmail.trim();
+    const trimmedPassword = studentPassword.trim();
+
+    if (!trimmedRollOrEmail || !trimmedPassword) {
       setError("Please enter your Roll Number / Email and Date of Birth.");
       return;
     }
@@ -48,7 +51,7 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
     setError(null);
 
     // Format email correctly to match {rollnumber}@mvvs.in
-    let formattedEmail = rollOrEmail.trim().toLowerCase();
+    let formattedEmail = trimmedRollOrEmail.toLowerCase();
     if (!formattedEmail.includes("@")) {
       formattedEmail = `${formattedEmail}@mvvs.in`;
     }
@@ -58,14 +61,14 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
       try {
         await signIn("password", {
           email: formattedEmail,
-          password: studentPassword.trim(),
+          password: trimmedPassword,
           flow: "signIn",
         });
       } catch (signInErr: any) {
-        // If account not created yet, attempt registration with official password
+        // If account not registered in authAccounts yet, attempt registration with official DOB
         await signIn("password", {
           email: formattedEmail,
-          password: studentPassword.trim(),
+          password: trimmedPassword,
           flow: "signUp",
         });
       }
@@ -74,9 +77,7 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
       navigate("/student");
     } catch (err: any) {
       console.error("Student Auth Error:", err);
-      setError(
-        err?.message || "Invalid Roll Number or Password (DOB). Please check your details or contact admin."
-      );
+      setError("Invalid Roll Number or Password (DOB). Please check your details or contact admin.");
     } finally {
       setIsLoading(false);
     }

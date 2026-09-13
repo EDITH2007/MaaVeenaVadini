@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 const subjectMarksValidator = v.optional(v.object({
@@ -42,6 +42,16 @@ export const getByRoll = query({
     // Public lookup strips confidential identity fields
     const { aadharNumber, samagraId, mobileNumber, dateOfBirth, dkNumber, userId, ...publicData } = student;
     return publicData;
+  },
+});
+
+export const getByRollInternal = internalQuery({
+  args: { rollNumber: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("students")
+      .withIndex("by_roll", (q) => q.eq("rollNumber", args.rollNumber.toUpperCase().trim()))
+      .unique();
   },
 });
 
