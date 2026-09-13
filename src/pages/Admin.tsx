@@ -1053,40 +1053,40 @@ export default function Admin() {
 
         {/* Main Tabbed Management */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)} className="space-y-6">
-          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl flex overflow-x-auto no-scrollbar gap-1.5 shadow-sm lg:grid lg:grid-cols-9 min-h-[48px] w-full">
-            <TabsTrigger value="students" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl flex items-center justify-start overflow-x-auto no-scrollbar gap-1.5 shadow-sm lg:grid lg:grid-cols-9 min-h-[48px] h-auto w-full max-w-full min-w-0">
+            <TabsTrigger value="students" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 lg:flex-1 min-h-[40px] whitespace-nowrap">
               <Users className="w-4 h-4 shrink-0" />
               <span>Students</span>
             </TabsTrigger>
-            <TabsTrigger value="sessions" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="sessions" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 lg:flex-1 min-h-[40px] whitespace-nowrap">
               <Layers className="w-4 h-4 shrink-0" />
               <span>Sessions</span>
             </TabsTrigger>
-            <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 lg:flex-1 min-h-[40px] whitespace-nowrap">
               <CreditCard className="w-4 h-4 shrink-0" />
               <span>Fees</span>
             </TabsTrigger>
-            <TabsTrigger value="attendance" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="attendance" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 lg:flex-1 min-h-[40px] whitespace-nowrap">
               <CalendarIcon className="w-4 h-4 shrink-0" />
               <span>Attendance</span>
             </TabsTrigger>
-            <TabsTrigger value="achievements" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="achievements" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 lg:flex-1 min-h-[40px] whitespace-nowrap">
               <Award className="w-4 h-4 shrink-0" />
               <span>Achievements</span>
             </TabsTrigger>
-            <TabsTrigger value="provisioning" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="provisioning" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 lg:flex-1 min-h-[40px] whitespace-nowrap">
               <KeyRound className="w-4 h-4 shrink-0" />
               <span>Provisioning</span>
             </TabsTrigger>
-            <TabsTrigger value="notices" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="notices" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 lg:flex-1 min-h-[40px] whitespace-nowrap">
               <Bell className="w-4 h-4 shrink-0" />
               <span>Notices</span>
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 lg:flex-1 min-h-[40px] whitespace-nowrap">
               <Clock className="w-4 h-4 shrink-0" />
               <span>Calendar</span>
             </TabsTrigger>
-            <TabsTrigger value="requests" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 lg:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="requests" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 lg:flex-1 min-h-[40px] whitespace-nowrap">
               <FileText className="w-4 h-4 shrink-0" />
               <span>Requests</span>
             </TabsTrigger>

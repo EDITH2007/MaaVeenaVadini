@@ -319,23 +319,23 @@ export default function StudentDashboard() {
 
         {/* Tabbed Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl flex overflow-x-auto no-scrollbar gap-1.5 shadow-sm sm:grid sm:grid-cols-6 min-h-[48px] w-full">
-            <TabsTrigger value="profile" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl flex items-center justify-start overflow-x-auto no-scrollbar gap-1.5 shadow-sm sm:grid sm:grid-cols-6 min-h-[48px] h-auto w-full max-w-full min-w-0">
+            <TabsTrigger value="profile" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 sm:flex-1 min-h-[40px] whitespace-nowrap">
               <User className="w-4 h-4 shrink-0" /> <span>Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="results" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="results" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 sm:flex-1 min-h-[40px] whitespace-nowrap">
               <BookOpen className="w-4 h-4 shrink-0" /> <span>Results</span>
             </TabsTrigger>
-            <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 sm:flex-1 min-h-[40px] whitespace-nowrap">
               <CreditCard className="w-4 h-4 shrink-0" /> <span>Fees</span>
             </TabsTrigger>
-            <TabsTrigger value="attendance" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="attendance" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 sm:flex-1 min-h-[40px] whitespace-nowrap">
               <CalendarIcon className="w-4 h-4 shrink-0" /> <span>Attendance</span>
             </TabsTrigger>
-            <TabsTrigger value="achievements" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="achievements" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 sm:flex-1 min-h-[40px] whitespace-nowrap">
               <Award className="w-4 h-4 shrink-0" /> <span>Achievements</span>
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 shrink-0 sm:shrink min-h-[40px] whitespace-nowrap">
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 px-3 py-2 flex-none shrink-0 sm:flex-1 min-h-[40px] whitespace-nowrap">
               <Clock className="w-4 h-4 shrink-0" /> <span>Calendar</span>
             </TabsTrigger>
           </TabsList>
