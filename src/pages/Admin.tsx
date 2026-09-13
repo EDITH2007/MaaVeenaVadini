@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { motion, AnimatePresence } from "framer-motion";
@@ -59,8 +60,6 @@ import {
   Unlock,
 } from "lucide-react";
 import { useNavigate } from "react-router";
-
-const ADMIN_PASSWORD = "MVVS@som145";
 
 type Tab = "students" | "fees" | "attendance" | "achievements" | "sessions" | "provisioning" | "notices" | "calendar" | "requests";
 
@@ -184,8 +183,11 @@ const emptyCalendarEvent: CalendarEventForm = {
 
 export default function Admin() {
   const navigate = useNavigate();
+  const { signIn, signOut } = useAuthActions();
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("students");
 
   // Check existing session
@@ -195,18 +197,37 @@ export default function Admin() {
     }
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === ADMIN_PASSWORD || passwordInput === "admin123") {
+    if (!passwordInput) {
+      toast.error("Please enter the admin password.");
+      return;
+    }
+    setIsLoggingIn(true);
+    try {
+      await signIn("password", {
+        email: "admin@mvvs.in",
+        password: passwordInput,
+        flow: "signIn",
+      });
       setIsLoggedIn(true);
       sessionStorage.setItem("mvvs_admin_authed", "true");
       toast.success("Welcome, Admin!");
-    } else {
+      setPasswordInput("");
+    } catch (err: any) {
+      console.error("Admin Login Error:", err);
       toast.error("Incorrect admin password.");
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch {
+      // Ignore signOut errors
+    }
     setIsLoggedIn(false);
     sessionStorage.removeItem("mvvs_admin_authed");
     toast.info("Logged out.");
@@ -871,10 +892,11 @@ export default function Admin() {
                   onChange={(e) => setPasswordInput(e.target.value)}
                   className="bg-white border-slate-300 text-slate-900 focus-visible:ring-amber-500"
                   required
+                  disabled={isLoggingIn}
                 />
               </div>
-              <Button type="submit" className="w-full bg-[#0a2540] text-white font-bold hover:bg-[#0f3256]">
-                Sign In to Admin Dashboard
+              <Button type="submit" disabled={isLoggingIn} className="w-full bg-[#0a2540] text-white font-bold hover:bg-[#0f3256]">
+                {isLoggingIn ? "Verifying..." : "Sign In to Admin Dashboard"}
               </Button>
             </form>
           </CardContent>

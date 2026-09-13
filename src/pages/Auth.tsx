@@ -93,32 +93,14 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
     setError(null);
 
     try {
-      // Support existing admin passcode
-      if (adminPassword === "MVVS@som145" || adminPassword === "admin123") {
-        sessionStorage.setItem("mvvs_admin_authed", "true");
-        // Also sign in via convex auth password if account exists
-        try {
-          await signIn("password", {
-            email: "admin@mvvs.in",
-            password: adminPassword,
-            flow: "signIn",
-          });
-        } catch {
-          // Allow session fallback for existing admin password
-        }
-        toast.success("Admin login successful.");
-        navigate("/admin");
-      } else {
-        // Try standard admin credentials
-        await signIn("password", {
-          email: "admin@mvvs.in",
-          password: adminPassword,
-          flow: "signIn",
-        });
-        sessionStorage.setItem("mvvs_admin_authed", "true");
-        toast.success("Admin login successful.");
-        navigate("/admin");
-      }
+      await signIn("password", {
+        email: "admin@mvvs.in",
+        password: adminPassword,
+        flow: "signIn",
+      });
+      sessionStorage.setItem("mvvs_admin_authed", "true");
+      toast.success("Admin login successful.");
+      navigate("/admin");
     } catch (err: any) {
       console.error("Admin Auth Error:", err);
       setError("Invalid Admin Password. Please try again.");

@@ -1,6 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { Scrypt } from "lucia";
 
 const subjectMarksValidator = v.optional(
   v.object({
@@ -25,15 +26,78 @@ const subjectsValidator = v.optional(
 export async function checkAdmin(ctx: any) {
   const userId = await getAuthUserId(ctx);
   if (!userId) {
-    // For legacy/simple admin access during transition, allow if authorized or check user role
-    return true;
+    throw new Error("Unauthorized: Admin authentication required");
   }
   const user = await ctx.db.get(userId);
-  if (user && user.role && user.role !== "admin") {
+  if (!user || user.role !== "admin") {
     throw new Error("Unauthorized: Admin access required");
   }
   return true;
 }
+
+export const seedAdminAccount = internalMutation({
+  args: { password: v.string() },
+  handler: async (ctx, args) => {
+    const adminEmail = "admin@mvvs.in";
+    if (!args.password || args.password.length < 8) {
+      throw new Error("Password must be at least 8 characters");
+    }
+
+    // 1. Ensure user exists in users table with role: 'admin'
+    let user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", adminEmail))
+      .unique();
+
+    if (!user) {
+      const userId = await ctx.db.insert("users", {
+        email: adminEmail,
+        role: "admin",
+        name: "Administrator",
+      });
+      user = await ctx.db.get(userId);
+    } else if (user.role !== "admin") {
+      await ctx.db.patch(user._id, { role: "admin" });
+      user = await ctx.db.get(user._id);
+    }
+
+    if (!user) throw new Error("Failed to initialize admin user record");
+
+    // 2. Hash password with Scrypt (standard Convex Auth pattern)
+    const scrypt = new Scrypt();
+    const hashedPassword = await scrypt.hash(args.password);
+
+    // 3. Upsert authAccounts entry
+    const existingAccount = await ctx.db
+      .query("authAccounts")
+      .withIndex("providerAndAccountId", (q) =>
+        q.eq("provider", "password").eq("providerAccountId", adminEmail)
+      )
+      .unique();
+
+    if (existingAccount) {
+      await ctx.db.patch(existingAccount._id, {
+        secret: hashedPassword,
+        userId: user._id,
+      });
+    } else {
+      await ctx.db.insert("authAccounts", {
+        userId: user._id,
+        provider: "password",
+        providerAccountId: adminEmail,
+        secret: hashedPassword,
+      });
+    }
+
+    return {
+      success: true,
+      message: "Admin account provisioned securely with hashed credentials.",
+      email: adminEmail,
+      userId: user._id,
+    };
+  },
+});
+
 
 // ----------------------------------------------------
 // STUDENTS CRUD & PROVISIONING
