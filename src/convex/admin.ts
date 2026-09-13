@@ -422,7 +422,12 @@ export const removeFee = mutation({
   args: { id: v.id("fees") },
   handler: async (ctx, args) => {
     await checkAdmin(ctx);
+    const existing = await ctx.db.get(args.id);
+    if (!existing) {
+      return null;
+    }
     await ctx.db.delete(args.id);
+    return true;
   },
 });
 

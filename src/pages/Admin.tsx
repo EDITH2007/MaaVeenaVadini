@@ -1328,6 +1328,8 @@ export default function Admin() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
+                                    title="Delete Fee Record"
+                                    aria-label="Delete Fee Record"
                                     onClick={() => setDeleteFeeId(fee._id)}
                                     className="h-8 w-8 p-0 text-slate-600 hover:text-red-600 hover:bg-red-50"
                                   >
@@ -2720,6 +2722,37 @@ export default function Admin() {
               className="bg-red-600 text-white hover:bg-red-700"
             >
               Delete Notice
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={Boolean(deleteFeeId)} onOpenChange={() => setDeleteFeeId(null)}>
+        <AlertDialogContent className="bg-white border-slate-200 text-slate-900">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Fee Record?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500">
+              This action cannot be undone. This will permanently remove this fee record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (deleteFeeId) {
+                  try {
+                    await removeFeeMutation({ id: deleteFeeId });
+                    toast.success("Fee record deleted.");
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "Failed to delete fee record.");
+                  } finally {
+                    setDeleteFeeId(null);
+                  }
+                }
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete Fee Record
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
