@@ -2,15 +2,44 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { checkAdmin } from "./admin";
 
-export const SUBJECTS_CONFIG = [
+export const PRIMARY_SUBJECTS = [
+  { key: "hindi", label: "Hindi" },
+  { key: "english", label: "English" },
+  { key: "math", label: "Mathematics" },
+  { key: "evs", label: "EVS" },
+  { key: "socialScience", label: "Social Science" },
+  { key: "computerScience", label: "Computer Science" },
+] as const;
+
+export const MIDDLE_SUBJECTS = [
   { key: "hindi", label: "Hindi" },
   { key: "english", label: "English" },
   { key: "math", label: "Mathematics" },
   { key: "science", label: "Science" },
   { key: "socialScience", label: "Social Science" },
   { key: "sanskrit", label: "Sanskrit" },
+] as const;
+
+export const SUBJECTS_CONFIG = [
+  { key: "hindi", label: "Hindi" },
+  { key: "english", label: "English" },
+  { key: "math", label: "Mathematics" },
+  { key: "evs", label: "EVS" },
+  { key: "science", label: "Science" },
+  { key: "socialScience", label: "Social Science" },
+  { key: "sanskrit", label: "Sanskrit" },
   { key: "computerScience", label: "Computer Science" },
 ] as const;
+
+export function isPrimaryClass(className?: string): boolean {
+  if (!className) return true;
+  const c = className.toLowerCase().trim();
+  return c.startsWith("1") || c.startsWith("2") || c.startsWith("3") || c.startsWith("4");
+}
+
+export function getSubjectsForClass(className?: string) {
+  return isPrimaryClass(className) ? PRIMARY_SUBJECTS : MIDDLE_SUBJECTS;
+}
 
 function calculateGrade(marks?: number, maxMarks: number = 100): string {
   if (marks === undefined || marks === null) return "—";
@@ -79,6 +108,9 @@ export const getStudentResultsForYear = query({
       .unique();
 
     const assignedClass = academicRecord?.class || student.class || "1st";
+    const applicableSubjects = getSubjectsForClass(assignedClass);
+    const applicableKeys = new Set<string>(applicableSubjects.map((s) => s.key));
+    const applicableMaxTotal = applicableSubjects.length * 100; // 600
 
     // 2. Query marks from student_marks
     const marksList = await ctx.db
@@ -108,22 +140,34 @@ export const getStudentResultsForYear = query({
 
     if (hySubjectRows.length > 0) {
       hySubjectRows.forEach((r) => {
-        hySubjects[r.subject] = r.marks;
+        // Map legacy science to evs for primary classes if evs not already present
+        if (isPrimaryClass(assignedClass) && r.subject === "science") {
+          if (hySubjects.evs === undefined) hySubjects.evs = r.marks;
+        } else {
+          hySubjects[r.subject] = r.marks;
+        }
       });
-      if (hyTotal === undefined) {
-        hyTotal = Object.values(hySubjects).reduce((a, b) => a + b, 0);
-      }
+      // Sum only applicable subjects for this class
+      hyTotal = Object.entries(hySubjects)
+        .filter(([k]) => applicableKeys.has(k))
+        .reduce((sum, [_, val]) => sum + val, 0);
     } else if (hyTotal !== undefined) {
       hyIsTotalOnly = true;
     }
 
     if (fnSubjectRows.length > 0) {
       fnSubjectRows.forEach((r) => {
-        fnSubjects[r.subject] = r.marks;
+        // Map legacy science to evs for primary classes if evs not already present
+        if (isPrimaryClass(assignedClass) && r.subject === "science") {
+          if (fnSubjects.evs === undefined) fnSubjects.evs = r.marks;
+        } else {
+          fnSubjects[r.subject] = r.marks;
+        }
       });
-      if (fnTotal === undefined) {
-        fnTotal = Object.values(fnSubjects).reduce((a, b) => a + b, 0);
-      }
+      // Sum only applicable subjects for this class
+      fnTotal = Object.entries(fnSubjects)
+        .filter(([k]) => applicableKeys.has(k))
+        .reduce((sum, [_, val]) => sum + val, 0);
     } else if (fnTotal !== undefined) {
       fnIsTotalOnly = true;
     }
@@ -140,9 +184,15 @@ export const getStudentResultsForYear = query({
       // Use legacy student fields
       if (student.subjects?.halfYearly) {
         hySubjects = (student.subjects.halfYearly as any) || {};
+        if (isPrimaryClass(assignedClass) && (hySubjects as any).science !== undefined && hySubjects.evs === undefined) {
+          hySubjects.evs = (hySubjects as any).science;
+        }
       }
       if (student.subjects?.final) {
         fnSubjects = (student.subjects.final as any) || {};
+        if (isPrimaryClass(assignedClass) && (fnSubjects as any).science !== undefined && fnSubjects.evs === undefined) {
+          fnSubjects.evs = (fnSubjects as any).science;
+        }
       }
       hyTotal = student.halfYearlyMarks;
       fnTotal = student.finalMarks;
@@ -155,19 +205,20 @@ export const getStudentResultsForYear = query({
       class: assignedClass,
       studentName: student.name,
       rollNumber: student.rollNumber,
+      applicableSubjects: applicableSubjects.map((s) => ({ key: s.key, label: s.label })),
       halfYearly: {
         subjects: hySubjects,
         total: hyTotal,
-        maxTotal: hyIsTotalOnly ? (hyTotalRow?.maxMarks || 700) : 700,
+        maxTotal: hyIsTotalOnly ? (hyTotalRow?.maxMarks || applicableMaxTotal) : applicableMaxTotal,
         isTotalOnly: hyIsTotalOnly,
-        grade: hyTotal !== undefined ? calculateGrade(hyTotal, 700) : undefined,
+        grade: hyTotal !== undefined ? calculateGrade(hyTotal, applicableMaxTotal) : undefined,
       },
       final: {
         subjects: fnSubjects,
         total: fnTotal,
-        maxTotal: fnIsTotalOnly ? (fnTotalRow?.maxMarks || 700) : 700,
+        maxTotal: fnIsTotalOnly ? (fnTotalRow?.maxMarks || applicableMaxTotal) : applicableMaxTotal,
         isTotalOnly: fnIsTotalOnly,
-        grade: fnTotal !== undefined ? calculateGrade(fnTotal, 700) : undefined,
+        grade: fnTotal !== undefined ? calculateGrade(fnTotal, applicableMaxTotal) : undefined,
       },
     };
   },
@@ -189,12 +240,16 @@ export const saveStudentYearMarks = mutation({
     const student = await ctx.db.get(args.studentId);
     if (!student) throw new Error("Student not found");
 
-    // 1. Calculate sums
+    const applicableSubjects = getSubjectsForClass(args.class);
+    const applicableKeys = new Set<string>(applicableSubjects.map((s) => s.key));
+    const applicableMaxTotal = applicableSubjects.length * 100; // 600
+
+    // 1. Calculate sums (filtering to applicable class subjects)
     const parseSubjects = (subMap: any): Record<string, number> => {
       if (!subMap || typeof subMap !== "object") return {};
       const res: Record<string, number> = {};
       for (const [k, v] of Object.entries(subMap)) {
-        if (v !== "" && v !== undefined && v !== null && !isNaN(Number(v))) {
+        if (applicableKeys.has(k) && v !== "" && v !== undefined && v !== null && !isNaN(Number(v))) {
           res[k] = Number(v);
         }
       }
@@ -278,8 +333,8 @@ export const saveStudentYearMarks = mutation({
         examType: "halfYearly",
         subject: "total",
         marks: hyFinalTotal,
-        maxMarks: 700,
-        grade: calculateGrade(hyFinalTotal, 700),
+        maxMarks: applicableMaxTotal,
+        grade: calculateGrade(hyFinalTotal, applicableMaxTotal),
       });
     }
 
@@ -306,8 +361,8 @@ export const saveStudentYearMarks = mutation({
         examType: "final",
         subject: "total",
         marks: fnFinalTotal,
-        maxMarks: 700,
-        grade: calculateGrade(fnFinalTotal, 700),
+        maxMarks: applicableMaxTotal,
+        grade: calculateGrade(fnFinalTotal, applicableMaxTotal),
       });
     }
 

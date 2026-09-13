@@ -5,6 +5,7 @@ const subjectMarksValidator = v.optional(v.object({
   hindi: v.optional(v.number()),
   english: v.optional(v.number()),
   math: v.optional(v.number()),
+  evs: v.optional(v.number()),
   science: v.optional(v.number()),
   socialScience: v.optional(v.number()),
   sanskrit: v.optional(v.number()),

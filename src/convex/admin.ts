@@ -7,6 +7,7 @@ const subjectMarksValidator = v.optional(
     hindi: v.optional(v.number()),
     english: v.optional(v.number()),
     math: v.optional(v.number()),
+    evs: v.optional(v.number()),
     science: v.optional(v.number()),
     socialScience: v.optional(v.number()),
     sanskrit: v.optional(v.number()),
@@ -232,26 +233,39 @@ export const removeAchievement = mutation({
 // ----------------------------------------------------
 
 export const listStudentFees = query({
-  args: { studentId: v.id("students") },
+  args: {
+    studentId: v.id("students"),
+    academicYear: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const fees = await ctx.db
       .query("fees")
       .withIndex("by_student", (q) => q.eq("studentId", args.studentId))
       .take(100);
+
+    if (args.academicYear && args.academicYear !== "all") {
+      return fees.filter((f) => (f.academicYear || "2025-26") === args.academicYear);
+    }
+    return fees;
   },
 });
 
 export const listAllFees = query({
-  args: { classFilter: v.optional(v.string()) },
+  args: {
+    classFilter: v.optional(v.string()),
+    academicYearFilter: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const fees = await ctx.db.query("fees").take(500);
     const students = await ctx.db.query("students").take(500);
     const studentMap = new Map(students.map((s) => [s._id, s]));
 
-    const combined = fees.map((fee) => {
+    let combined = fees.map((fee) => {
       const s = studentMap.get(fee.studentId);
+      const year = fee.academicYear || "2025-26";
       return {
         ...fee,
+        academicYear: year,
         studentName: s?.name || "Unknown Student",
         rollNumber: s?.rollNumber || "N/A",
         class: s?.class || "N/A",
@@ -259,7 +273,10 @@ export const listAllFees = query({
     });
 
     if (args.classFilter && args.classFilter !== "all") {
-      return combined.filter((f) => f.class === args.classFilter);
+      combined = combined.filter((f) => f.class === args.classFilter);
+    }
+    if (args.academicYearFilter && args.academicYearFilter !== "all") {
+      combined = combined.filter((f) => f.academicYear === args.academicYearFilter);
     }
     return combined;
   },
@@ -268,6 +285,7 @@ export const listAllFees = query({
 export const addFee = mutation({
   args: {
     studentId: v.id("students"),
+    academicYear: v.optional(v.string()),
     title: v.string(),
     amount: v.number(),
     paidAmount: v.number(),
@@ -279,7 +297,15 @@ export const addFee = mutation({
   },
   handler: async (ctx, args) => {
     await checkAdmin(ctx);
-    return await ctx.db.insert("fees", args);
+    let targetYear = args.academicYear;
+    if (!targetYear) {
+      const current = await ctx.db
+        .query("academic_sessions")
+        .withIndex("by_isCurrent", (q) => q.eq("isCurrent", true))
+        .first();
+      targetYear = current?.year || "2025-26";
+    }
+    return await ctx.db.insert("fees", { ...args, academicYear: targetYear });
   },
 });
 
@@ -288,12 +314,22 @@ export const assignFeeStructure = mutation({
     target: v.union(v.literal("all"), v.literal("class"), v.literal("student")),
     targetClass: v.optional(v.string()),
     studentId: v.optional(v.id("students")),
+    academicYear: v.optional(v.string()),
     title: v.string(),
     amount: v.number(),
     dueDate: v.string(),
   },
   handler: async (ctx, args) => {
     await checkAdmin(ctx);
+    let targetYear = args.academicYear;
+    if (!targetYear) {
+      const current = await ctx.db
+        .query("academic_sessions")
+        .withIndex("by_isCurrent", (q) => q.eq("isCurrent", true))
+        .first();
+      targetYear = current?.year || "2025-26";
+    }
+
     let targetStudents: Array<any> = [];
     if (args.target === "student" && args.studentId) {
       const s = await ctx.db.get(args.studentId);
@@ -313,6 +349,7 @@ export const assignFeeStructure = mutation({
       const isPastDue = args.dueDate < now;
       await ctx.db.insert("fees", {
         studentId: student._id,
+        academicYear: targetYear,
         title: args.title.trim(),
         amount: args.amount,
         paidAmount: 0,
@@ -321,7 +358,7 @@ export const assignFeeStructure = mutation({
       });
       createdCount++;
     }
-    return { count: createdCount };
+    return { count: createdCount, academicYear: targetYear };
   },
 });
 
@@ -364,6 +401,7 @@ export const recordFeePayment = mutation({
 export const updateFee = mutation({
   args: {
     id: v.id("fees"),
+    academicYear: v.optional(v.string()),
     title: v.string(),
     amount: v.number(),
     paidAmount: v.number(),
@@ -510,11 +548,6 @@ export const getDashboardStats = query({
   handler: async (ctx) => {
     const students = await ctx.db.query("students").take(500);
     const notices = await ctx.db.query("notices").take(100);
-    const fees = await ctx.db.query("fees").take(500);
-    const overdueFeesCount = fees.filter((f) => f.status === "overdue").length;
-    const totalAssignedFee = fees.reduce((acc, f) => acc + (f.amount || 0), 0);
-    const totalPaidFee = fees.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
-    const totalDueFee = Math.max(0, totalAssignedFee - totalPaidFee);
     const pendingRequests = await ctx.db
       .query("profile_change_requests")
       .withIndex("by_status", (q) => q.eq("status", "pending"))
@@ -526,11 +559,40 @@ export const getDashboardStats = query({
       totalStudents: students.length,
       totalNotices: notices.length,
       totalClasses: classesSet.size,
-      overdueFeesCount,
-      totalAssignedFee,
-      totalPaidFee,
-      totalDueFee,
       pendingRequestsCount: pendingRequests.length,
     };
   },
 });
+
+const ADMIN_FEE_SUMMARY_PIN = "1982";
+
+export const getProtectedFeeStats = query({
+  args: {
+    pin: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await checkAdmin(ctx);
+    if (args.pin.trim() !== ADMIN_FEE_SUMMARY_PIN) {
+      return {
+        authorized: false,
+        totalAssignedFee: 0,
+        overdueFeesCount: 0,
+      };
+    }
+
+    const fees = await ctx.db.query("fees").take(500);
+    const overdueFeesCount = fees.filter((f) => f.status === "overdue").length;
+    const totalAssignedFee = fees.reduce((acc, f) => acc + (f.amount || 0), 0);
+    const totalPaidFee = fees.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
+    const totalDueFee = Math.max(0, totalAssignedFee - totalPaidFee);
+
+    return {
+      authorized: true,
+      totalAssignedFee,
+      overdueFeesCount,
+      totalPaidFee,
+      totalDueFee,
+    };
+  },
+});
+

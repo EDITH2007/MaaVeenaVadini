@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { deriveAcademicYearFromDate } from "./migration";
+import { getSubjectsForClass, isPrimaryClass } from "./results";
 
 async function getAuthenticatedStudent(ctx: any) {
   const userId = await getAuthUserId(ctx);
@@ -73,6 +74,11 @@ export const getMyAcademicYears = query({
       .withIndex("by_studentId_and_academicYear", (q) => q.eq("studentId", student._id))
       .collect();
 
+    const studentFees = await ctx.db
+      .query("fees")
+      .withIndex("by_student", (q) => q.eq("studentId", student._id))
+      .collect();
+
     const activeSession = await ctx.db
       .query("academic_sessions")
       .withIndex("by_isCurrent", (q) => q.eq("isCurrent", true))
@@ -82,6 +88,9 @@ export const getMyAcademicYears = query({
     const yearSet = new Set<string>();
     records.forEach((r) => yearSet.add(r.academicYear));
     marks.forEach((m) => yearSet.add(m.academicYear));
+    studentFees.forEach((f) => {
+      if (f.academicYear) yearSet.add(f.academicYear);
+    });
     yearSet.add(currentYear);
 
     const sortedYears = Array.from(yearSet).sort((a, b) => b.localeCompare(a));
@@ -115,6 +124,9 @@ export const getMyResultsByYear = query({
       .unique();
 
     const assignedClass = academicRecord?.class || student.class || "1st";
+    const applicableSubjects = getSubjectsForClass(assignedClass);
+    const applicableKeys = new Set<string>(applicableSubjects.map((s) => s.key));
+    const applicableMaxTotal = applicableSubjects.length * 100; // 600
 
     // 2. Fetch marks
     const marksList = await ctx.db
@@ -124,6 +136,7 @@ export const getMyResultsByYear = query({
       )
       .collect();
 
+    // Format Half Yearly
     const hyMarksRows = marksList.filter((m) => m.examType === "halfYearly");
     const fnMarksRows = marksList.filter((m) => m.examType === "final");
 
@@ -142,22 +155,30 @@ export const getMyResultsByYear = query({
 
     if (hySubjectRows.length > 0) {
       hySubjectRows.forEach((r) => {
-        hySubjects[r.subject] = r.marks;
+        if (isPrimaryClass(assignedClass) && r.subject === "science") {
+          if (hySubjects.evs === undefined) hySubjects.evs = r.marks;
+        } else {
+          hySubjects[r.subject] = r.marks;
+        }
       });
-      if (hyTotal === undefined) {
-        hyTotal = Object.values(hySubjects).reduce((a, b) => a + b, 0);
-      }
+      hyTotal = Object.entries(hySubjects)
+        .filter(([k]) => applicableKeys.has(k))
+        .reduce((sum, [_, val]) => sum + val, 0);
     } else if (hyTotal !== undefined) {
       hyIsTotalOnly = true;
     }
 
     if (fnSubjectRows.length > 0) {
       fnSubjectRows.forEach((r) => {
-        fnSubjects[r.subject] = r.marks;
+        if (isPrimaryClass(assignedClass) && r.subject === "science") {
+          if (fnSubjects.evs === undefined) fnSubjects.evs = r.marks;
+        } else {
+          fnSubjects[r.subject] = r.marks;
+        }
       });
-      if (fnTotal === undefined) {
-        fnTotal = Object.values(fnSubjects).reduce((a, b) => a + b, 0);
-      }
+      fnTotal = Object.entries(fnSubjects)
+        .filter(([k]) => applicableKeys.has(k))
+        .reduce((sum, [_, val]) => sum + val, 0);
     } else if (fnTotal !== undefined) {
       fnIsTotalOnly = true;
     }
@@ -166,9 +187,15 @@ export const getMyResultsByYear = query({
     if (targetYear === currentYear && marksList.length === 0 && !academicRecord) {
       if (student.subjects?.halfYearly) {
         hySubjects = (student.subjects.halfYearly as any) || {};
+        if (isPrimaryClass(assignedClass) && (hySubjects as any).science !== undefined && hySubjects.evs === undefined) {
+          hySubjects.evs = (hySubjects as any).science;
+        }
       }
       if (student.subjects?.final) {
         fnSubjects = (student.subjects.final as any) || {};
+        if (isPrimaryClass(assignedClass) && (fnSubjects as any).science !== undefined && fnSubjects.evs === undefined) {
+          fnSubjects.evs = (fnSubjects as any).science;
+        }
       }
       hyTotal = student.halfYearlyMarks;
       fnTotal = student.finalMarks;
@@ -180,19 +207,20 @@ export const getMyResultsByYear = query({
       academicYear: targetYear,
       isCurrentYear: targetYear === currentYear,
       class: assignedClass,
+      applicableSubjects: applicableSubjects.map((s) => ({ key: s.key, label: s.label })),
       halfYearly: {
         subjects: hySubjects,
         total: hyTotal,
-        maxTotal: hyIsTotalOnly ? (hyTotalRow?.maxMarks || 700) : 700,
+        maxTotal: hyIsTotalOnly ? (hyTotalRow?.maxMarks || applicableMaxTotal) : applicableMaxTotal,
         isTotalOnly: hyIsTotalOnly,
-        grade: hyTotal !== undefined ? calculateGrade(hyTotal, 700) : undefined,
+        grade: hyTotal !== undefined ? calculateGrade(hyTotal, applicableMaxTotal) : undefined,
       },
       final: {
         subjects: fnSubjects,
         total: fnTotal,
-        maxTotal: fnIsTotalOnly ? (fnTotalRow?.maxMarks || 700) : 700,
+        maxTotal: fnIsTotalOnly ? (fnTotalRow?.maxMarks || applicableMaxTotal) : applicableMaxTotal,
         isTotalOnly: fnIsTotalOnly,
-        grade: fnTotal !== undefined ? calculateGrade(fnTotal, 700) : undefined,
+        grade: fnTotal !== undefined ? calculateGrade(fnTotal, applicableMaxTotal) : undefined,
       },
     };
   },
@@ -227,14 +255,27 @@ export const getMyAchievements = query({
 });
 
 export const getMyFees = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    academicYear: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
     const student = await getAuthenticatedStudent(ctx);
     if (!student) return [];
-    return await ctx.db
+
+    const rawFees = await ctx.db
       .query("fees")
       .withIndex("by_student", (q) => q.eq("studentId", student._id))
       .take(100);
+
+    const enriched = rawFees.map((f) => ({
+      ...f,
+      academicYear: f.academicYear || "2025-26",
+    }));
+
+    if (args.academicYear && args.academicYear !== "all") {
+      return enriched.filter((f) => f.academicYear === args.academicYear);
+    }
+    return enriched;
   },
 });
 

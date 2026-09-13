@@ -42,15 +42,33 @@ import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { useAuthActions } from "@convex-dev/auth/react";
 
-const SUBJECTS = [
+export const PRIMARY_SUBJECTS = [
+  { key: "hindi", label: "Hindi" },
+  { key: "english", label: "English" },
+  { key: "math", label: "Mathematics" },
+  { key: "evs", label: "EVS" },
+  { key: "socialScience", label: "Social Science" },
+  { key: "computerScience", label: "Computer Science" },
+] as const;
+
+export const MIDDLE_SUBJECTS = [
   { key: "hindi", label: "Hindi" },
   { key: "english", label: "English" },
   { key: "math", label: "Mathematics" },
   { key: "science", label: "Science" },
   { key: "socialScience", label: "Social Science" },
   { key: "sanskrit", label: "Sanskrit" },
-  { key: "computerScience", label: "Computer Science" },
 ] as const;
+
+export function isPrimaryClass(className?: string): boolean {
+  if (!className) return true;
+  const c = className.toLowerCase().trim();
+  return c.startsWith("1") || c.startsWith("2") || c.startsWith("3") || c.startsWith("4");
+}
+
+export function getSubjectsForClass(className?: string) {
+  return isPrimaryClass(className) ? PRIMARY_SUBJECTS : MIDDLE_SUBJECTS;
+}
 
 function getGrade(marks?: number) {
   if (marks === undefined || marks === null) return null;
@@ -73,15 +91,18 @@ export default function StudentDashboard() {
   const achievements = useQuery(api.studentDashboard.getMyAchievements, {
     academicYearFilter: achievementSessionFilter !== "all" ? achievementSessionFilter : undefined,
   });
-  const fees = useQuery(api.studentDashboard.getMyFees);
-  const attendance = useQuery(api.studentDashboard.getMyAttendance);
-  const calendarEvents = useQuery(api.calendar.listPublicEvents);
-
-  // Multi-Year Results Queries
+  // Multi-Year Results & Fees Queries
   const academicYearsData = useQuery(api.studentDashboard.getMyAcademicYears);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string | null>(null);
   const activeYear = selectedAcademicYear || academicYearsData?.currentYear || "2025-26";
   const yearResults = useQuery(api.studentDashboard.getMyResultsByYear, { academicYear: activeYear });
+
+  const [selectedFeeAcademicYear, setSelectedFeeAcademicYear] = useState<string | null>(null);
+  const activeFeeYear = selectedFeeAcademicYear || academicYearsData?.currentYear || "2025-26";
+  const fees = useQuery(api.studentDashboard.getMyFees, { academicYear: activeFeeYear });
+
+  const attendance = useQuery(api.studentDashboard.getMyAttendance);
+  const calendarEvents = useQuery(api.calendar.listPublicEvents);
 
   const requestProfileChange = useMutation(api.studentDashboard.requestProfileChange);
 
@@ -447,20 +468,28 @@ export default function StudentDashboard() {
 
               <CardContent className="pt-6 space-y-8">
                 {(() => {
+                  const s = studentProfile;
+                  const studentClass = yearResults?.class || s?.class || "1st";
+                  const activeSubjects =
+                    (yearResults as any)?.applicableSubjects && (yearResults as any).applicableSubjects.length > 0
+                      ? (yearResults as any).applicableSubjects
+                      : getSubjectsForClass(studentClass);
+                  const totalMaxMarks = activeSubjects.length * 100; // 600
+
                   const hyData = yearResults?.halfYearly ?? {
                     subjects: (s?.subjects?.halfYearly as any) || {},
                     total: s?.halfYearlyMarks,
-                    maxTotal: 700,
+                    maxTotal: totalMaxMarks,
                     isTotalOnly: !s?.subjects?.halfYearly && s?.halfYearlyMarks !== undefined,
-                    grade: s?.halfYearlyMarks !== undefined ? getGrade(Math.round(s.halfYearlyMarks / 7))?.grade : undefined,
+                    grade: s?.halfYearlyMarks !== undefined ? getGrade(Math.round((s.halfYearlyMarks / totalMaxMarks) * 100))?.grade : undefined,
                   };
 
                   const fnData = yearResults?.final ?? {
                     subjects: (s?.subjects?.final as any) || {},
                     total: s?.finalMarks,
-                    maxTotal: 700,
+                    maxTotal: totalMaxMarks,
                     isTotalOnly: !s?.subjects?.final && s?.finalMarks !== undefined,
-                    grade: s?.finalMarks !== undefined ? getGrade(Math.round(s.finalMarks / 7))?.grade : undefined,
+                    grade: s?.finalMarks !== undefined ? getGrade(Math.round((s.finalMarks / totalMaxMarks) * 100))?.grade : undefined,
                   };
 
                   const hasHy = hyData.total !== undefined || Object.keys(hyData.subjects || {}).length > 0;
@@ -478,18 +507,26 @@ export default function StudentDashboard() {
                     );
                   }
 
+                  const hyMax = hyData.maxTotal || totalMaxMarks;
+                  const fnMax = fnData.maxTotal || totalMaxMarks;
+
                   return (
                     <>
                       {/* 1. HALF YEARLY EXAMINATION TABLE */}
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-bold text-base text-[#0a2540] flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-amber-600" />
-                            1. Half Yearly Examination Results ({activeYear})
-                          </h3>
+                          <div>
+                            <h3 className="font-bold text-base text-[#0a2540] flex items-center gap-2">
+                              <Sparkles className="w-4 h-4 text-amber-600" />
+                              1. Half Yearly Examination Results ({activeYear})
+                            </h3>
+                            <p className="text-[11px] text-slate-500 font-medium">
+                              {isPrimaryClass(studentClass) ? "Primary Level (Class 1–4): 6 Subjects" : "Middle School (Class 5–8): 6 Subjects"}
+                            </p>
+                          </div>
                           {hyData.total !== undefined && (
                             <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-bold">
-                              Total Marks: {hyData.total} / {hyData.maxTotal || 700}
+                              Total Marks: {hyData.total} / {hyMax}
                             </Badge>
                           )}
                         </div>
@@ -514,7 +551,7 @@ export default function StudentDashboard() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                              {SUBJECTS.map((sub) => {
+                              {activeSubjects.map((sub: any) => {
                                 const val = hyData.subjects?.[sub.key];
                                 const g = getGrade(val);
                                 return (
@@ -537,14 +574,14 @@ export default function StudentDashboard() {
                               {/* Total Row */}
                               <tr className="bg-slate-100/80 font-bold border-t-2 border-slate-200">
                                 <td className="p-3 text-slate-900">Half Yearly Total Score</td>
-                                <td className="p-3 text-right font-mono text-slate-600">{hyData.maxTotal || 700}</td>
+                                <td className="p-3 text-right font-mono text-slate-600">{hyMax}</td>
                                 <td className="p-3 text-right font-bold text-amber-700 text-base">
                                   {hyData.total !== undefined ? hyData.total : "N/A"}
                                 </td>
                                 <td className="p-3 text-right">
                                   {hyData.total !== undefined && (
-                                    <Badge className={getGrade(Math.round(hyData.total / 7))?.color || ""}>
-                                      {getGrade(Math.round(hyData.total / 7))?.grade} Overall
+                                    <Badge className={getGrade(Math.round((hyData.total / hyMax) * 100))?.color || ""}>
+                                      {getGrade(Math.round((hyData.total / hyMax) * 100))?.grade} Overall
                                     </Badge>
                                   )}
                                 </td>
@@ -557,13 +594,18 @@ export default function StudentDashboard() {
                       {/* 2. FINAL EXAMINATION TABLE */}
                       <div className="space-y-3 pt-4 border-t border-slate-200">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-bold text-base text-[#0a2540] flex items-center gap-2">
-                            <GraduationCap className="w-4 h-4 text-emerald-600" />
-                            2. Final Examination Results ({activeYear})
-                          </h3>
+                          <div>
+                            <h3 className="font-bold text-base text-[#0a2540] flex items-center gap-2">
+                              <GraduationCap className="w-4 h-4 text-emerald-600" />
+                              2. Final Examination Results ({activeYear})
+                            </h3>
+                            <p className="text-[11px] text-slate-500 font-medium">
+                              {isPrimaryClass(studentClass) ? "Primary Level (Class 1–4): 6 Subjects" : "Middle School (Class 5–8): 6 Subjects"}
+                            </p>
+                          </div>
                           {fnData.total !== undefined && (
                             <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 font-bold">
-                              Total Marks: {fnData.total} / {fnData.maxTotal || 700}
+                              Total Marks: {fnData.total} / {fnMax}
                             </Badge>
                           )}
                         </div>
@@ -588,7 +630,7 @@ export default function StudentDashboard() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                              {SUBJECTS.map((sub) => {
+                              {activeSubjects.map((sub: any) => {
                                 const val = fnData.subjects?.[sub.key];
                                 const g = getGrade(val);
                                 return (
@@ -611,14 +653,14 @@ export default function StudentDashboard() {
                               {/* Total Row */}
                               <tr className="bg-slate-100/80 font-bold border-t-2 border-slate-200">
                                 <td className="p-3 text-slate-900">Final Examination Total Score</td>
-                                <td className="p-3 text-right font-mono text-slate-600">{fnData.maxTotal || 700}</td>
+                                <td className="p-3 text-right font-mono text-slate-600">{fnMax}</td>
                                 <td className="p-3 text-right font-bold text-emerald-700 text-base">
                                   {fnData.total !== undefined ? fnData.total : "N/A"}
                                 </td>
                                 <td className="p-3 text-right">
                                   {fnData.total !== undefined && (
-                                    <Badge className={getGrade(Math.round(fnData.total / 7))?.color || ""}>
-                                      {getGrade(Math.round(fnData.total / 7))?.grade} Overall
+                                    <Badge className={getGrade(Math.round((fnData.total / fnMax) * 100))?.color || ""}>
+                                      {getGrade(Math.round((fnData.total / fnMax) * 100))?.grade} Overall
                                     </Badge>
                                   )}
                                 </td>
@@ -638,13 +680,46 @@ export default function StudentDashboard() {
           <TabsContent value="fees" className="space-y-6">
             <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
               <CardHeader className="border-b border-slate-100 pb-4">
-                <CardTitle className="text-xl text-[#0a2540] flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-amber-600" />
-                  Fees Structure & Payment Ledger
-                </CardTitle>
-                <CardDescription className="text-slate-500 text-xs">
-                  Real-time summary of fee installments, payments logged, and due balances.
-                </CardDescription>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-xl text-[#0a2540] flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-amber-600" />
+                      Fees Structure & Payment Ledger
+                    </CardTitle>
+                    <CardDescription className="text-slate-500 text-xs">
+                      Real-time summary of fee installments, payments logged, and due balances.
+                    </CardDescription>
+                  </div>
+                </div>
+
+                {/* Academic Session Selector Pills for Fees */}
+                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider mr-1">
+                    Academic Session:
+                  </span>
+                  {(academicYearsData?.years || ["2025-26"]).map((yr) => {
+                    const isSelected = activeFeeYear === yr;
+                    const isLive = yr === (academicYearsData?.currentYear || "2025-26");
+                    return (
+                      <button
+                        key={yr}
+                        onClick={() => setSelectedFeeAcademicYear(yr)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          isSelected
+                            ? "bg-[#0a2540] text-white shadow-sm ring-2 ring-amber-500/50"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                        }`}
+                      >
+                        <span>Session {yr}</span>
+                        {isLive && (
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? "bg-amber-400 text-slate-950" : "bg-emerald-100 text-emerald-800"}`}>
+                            Active
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
                 {/* Fees Stats Summary Cards */}
@@ -708,7 +783,7 @@ export default function StudentDashboard() {
                   ) : (
                     <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-slate-500">
                       <CreditCard className="w-8 h-8 mx-auto text-slate-400 mb-2" />
-                      <p className="text-sm">No fee records logged for this session yet.</p>
+                      <p className="text-sm">No fee records logged for session {activeFeeYear} yet.</p>
                     </div>
                   )}
                 </div>

@@ -48,6 +48,8 @@ export const getMigrationStatus = query({
     const recordsCount = (await ctx.db.query("student_academic_records").take(500)).length;
     const marksCount = (await ctx.db.query("student_marks").take(5000)).length;
     const achievementsCount = (await ctx.db.query("achievements").take(500)).length;
+    const allFees = await ctx.db.query("fees").take(1000);
+    const unmigratedFeesCount = allFees.filter((f) => !f.academicYear).length;
 
     const isMigrated = Boolean(activeSession && recordsCount >= totalStudents && totalStudents > 0);
 
@@ -58,6 +60,8 @@ export const getMigrationStatus = query({
       recordsCount,
       marksCount,
       achievementsCount,
+      unmigratedFeesCount,
+      totalFeesCount: allFees.length,
     };
   },
 });
@@ -221,13 +225,53 @@ export const migrateToMultiYear = mutation({
       }
     }
 
+    // 4. Migrate fees
+    const fees = await ctx.db.query("fees").take(1000);
+    let taggedFees = 0;
+    for (const fee of fees) {
+      if (!fee.academicYear) {
+        const derivedYear = fee.dueDate ? deriveAcademicYearFromDate(fee.dueDate) : targetYear;
+        await ctx.db.patch(fee._id, { academicYear: derivedYear || targetYear });
+        taggedFees++;
+      }
+    }
+
     return {
       success: true,
       targetYear,
       migratedStudents,
       createdMarksRows,
       taggedAchievements,
+      taggedFees,
       totalStudents: students.length,
+      totalFees: fees.length,
     };
+  },
+});
+
+export const migrateFeesToMultiYear = mutation({
+  args: {
+    targetYear: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await checkAdmin(ctx);
+    const activeSession = await ctx.db
+      .query("academic_sessions")
+      .withIndex("by_isCurrent", (q) => q.eq("isCurrent", true))
+      .first();
+
+    const targetYear = args.targetYear || activeSession?.year || "2025-26";
+    const fees = await ctx.db.query("fees").take(1000);
+    let updatedCount = 0;
+
+    for (const fee of fees) {
+      if (!fee.academicYear) {
+        const yearToAssign = fee.dueDate ? deriveAcademicYearFromDate(fee.dueDate) : targetYear;
+        await ctx.db.patch(fee._id, { academicYear: yearToAssign || targetYear });
+        updatedCount++;
+      }
+    }
+
+    return { total: fees.length, updated: updatedCount, targetYear };
   },
 });

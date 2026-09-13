@@ -53,6 +53,7 @@ const schema = defineSchema(
           hindi: v.optional(v.number()),
           english: v.optional(v.number()),
           math: v.optional(v.number()),
+          evs: v.optional(v.number()),
           science: v.optional(v.number()),
           socialScience: v.optional(v.number()),
           sanskrit: v.optional(v.number()),
@@ -62,6 +63,7 @@ const schema = defineSchema(
           hindi: v.optional(v.number()),
           english: v.optional(v.number()),
           math: v.optional(v.number()),
+          evs: v.optional(v.number()),
           science: v.optional(v.number()),
           socialScience: v.optional(v.number()),
           sanskrit: v.optional(v.number()),
@@ -121,9 +123,9 @@ const schema = defineSchema(
       academicYear: v.string(), // e.g. "2025-26"
       class: v.string(), // e.g. "5th"
       examType: v.union(v.literal("halfYearly"), v.literal("final")),
-      subject: v.string(), // "hindi" | "english" | "math" | "science" | "socialScience" | "sanskrit" | "computerScience" | "total"
+      subject: v.string(), // "hindi" | "english" | "math" | "evs" | "science" | "socialScience" | "sanskrit" | "computerScience" | "total"
       marks: v.number(),
-      maxMarks: v.number(), // default 100 per subject, 700 for total
+      maxMarks: v.number(), // default 100 per subject, 600 for total
       grade: v.optional(v.string()),
     })
       .index("by_studentId_and_academicYear", ["studentId", "academicYear"])
@@ -133,6 +135,7 @@ const schema = defineSchema(
 
     fees: defineTable({
       studentId: v.id("students"),
+      academicYear: v.optional(v.string()),
       title: v.string(),
       amount: v.number(),
       paidAmount: v.number(),
@@ -141,7 +144,10 @@ const schema = defineSchema(
       paymentDate: v.optional(v.string()),
       paymentMode: v.optional(v.string()),
       remarks: v.optional(v.string()),
-    }).index("by_student", ["studentId"]),
+    })
+      .index("by_student", ["studentId"])
+      .index("by_academicYear", ["academicYear"])
+      .index("by_student_and_academicYear", ["studentId", "academicYear"]),
 
     attendance: defineTable({
       studentId: v.id("students"),

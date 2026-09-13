@@ -12,6 +12,7 @@ const SUBJECTS = [
   { key: "hindi", label: "Hindi" },
   { key: "english", label: "English" },
   { key: "math", label: "Mathematics" },
+  { key: "evs", label: "EVS" },
   { key: "science", label: "Science" },
   { key: "socialScience", label: "Social Science" },
   { key: "sanskrit", label: "Sanskrit" },
@@ -20,14 +21,15 @@ const SUBJECTS = [
 
 type SubjectKey = typeof SUBJECTS[number]["key"];
 
-function getGrade(marks?: number) {
+function getGrade(marks?: number, maxMarks: number = 100) {
   if (marks === undefined || marks === null) return null;
-  if (marks >= 90) return { grade: "A+", color: "bg-green-100 text-green-800" };
-  if (marks >= 80) return { grade: "A", color: "bg-green-100 text-green-700" };
-  if (marks >= 70) return { grade: "B+", color: "bg-blue-100 text-blue-800" };
-  if (marks >= 60) return { grade: "B", color: "bg-blue-100 text-blue-700" };
-  if (marks >= 50) return { grade: "C", color: "bg-yellow-100 text-yellow-800" };
-  if (marks >= 33) return { grade: "D", color: "bg-orange-100 text-orange-800" };
+  const pct = maxMarks === 100 ? marks : (marks / maxMarks) * 100;
+  if (pct >= 90) return { grade: "A+", color: "bg-green-100 text-green-800" };
+  if (pct >= 80) return { grade: "A", color: "bg-green-100 text-green-700" };
+  if (pct >= 70) return { grade: "B+", color: "bg-blue-100 text-blue-800" };
+  if (pct >= 60) return { grade: "B", color: "bg-blue-100 text-blue-700" };
+  if (pct >= 50) return { grade: "C", color: "bg-yellow-100 text-yellow-800" };
+  if (pct >= 33) return { grade: "D", color: "bg-orange-100 text-orange-800" };
   return { grade: "F", color: "bg-red-100 text-red-800" };
 }
 
@@ -92,8 +94,8 @@ function ProfileCard({ rollNumber }: { rollNumber: string }) {
     );
   }
 
-  const halfGrade = getGrade(student.halfYearlyMarks);
-  const finalGrade = getGrade(student.finalMarks);
+  const halfGrade = getGrade(student.halfYearlyMarks, 600);
+  const finalGrade = getGrade(student.finalMarks, 600);
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
@@ -152,7 +154,7 @@ function ProfileCard({ rollNumber }: { rollNumber: string }) {
               <div className="text-right">
                 {student.halfYearlyMarks !== undefined && student.halfYearlyMarks !== null ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold">{student.halfYearlyMarks}</span>
+                    <span className="text-xl font-bold">{student.halfYearlyMarks} <span className="text-xs font-normal text-muted-foreground">/ 600</span></span>
                     {halfGrade && (
                       <span className={`text-xs font-bold px-2 py-1 rounded-full ${halfGrade.color}`}>{halfGrade.grade}</span>
                     )}
@@ -175,7 +177,7 @@ function ProfileCard({ rollNumber }: { rollNumber: string }) {
               <div className="text-right">
                 {student.finalMarks !== undefined && student.finalMarks !== null ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold">{student.finalMarks}</span>
+                    <span className="text-xl font-bold">{student.finalMarks} <span className="text-xs font-normal text-muted-foreground">/ 600</span></span>
                     {finalGrade && (
                       <span className={`text-xs font-bold px-2 py-1 rounded-full ${finalGrade.color}`}>{finalGrade.grade}</span>
                     )}

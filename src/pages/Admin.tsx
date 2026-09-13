@@ -55,6 +55,8 @@ import {
   DollarSign,
   Check,
   Layers,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 
@@ -65,22 +67,52 @@ type Tab = "students" | "fees" | "attendance" | "achievements" | "sessions" | "p
 const CLASSES = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
 const CATEGORIES = ["General", "OBC", "SC", "ST"];
 
-const SUBJECTS = [
+export const PRIMARY_SUBJECTS = [
+  { key: "hindi", label: "Hindi" },
+  { key: "english", label: "English" },
+  { key: "math", label: "Mathematics" },
+  { key: "evs", label: "EVS" },
+  { key: "socialScience", label: "Social Science" },
+  { key: "computerScience", label: "Computer Science" },
+] as const;
+
+export const MIDDLE_SUBJECTS = [
   { key: "hindi", label: "Hindi" },
   { key: "english", label: "English" },
   { key: "math", label: "Mathematics" },
   { key: "science", label: "Science" },
   { key: "socialScience", label: "Social Science" },
   { key: "sanskrit", label: "Sanskrit" },
+] as const;
+
+export const ALL_SUBJECTS = [
+  { key: "hindi", label: "Hindi" },
+  { key: "english", label: "English" },
+  { key: "math", label: "Mathematics" },
+  { key: "evs", label: "EVS" },
+  { key: "science", label: "Science" },
+  { key: "socialScience", label: "Social Science" },
+  { key: "sanskrit", label: "Sanskrit" },
   { key: "computerScience", label: "Computer Science" },
 ] as const;
 
-type SubjectKey = typeof SUBJECTS[number]["key"];
+export function isPrimaryClass(className?: string): boolean {
+  if (!className) return true;
+  const c = className.toLowerCase().trim();
+  return c.startsWith("1") || c.startsWith("2") || c.startsWith("3") || c.startsWith("4");
+}
+
+export function getSubjectsForClass(className?: string) {
+  return isPrimaryClass(className) ? PRIMARY_SUBJECTS : MIDDLE_SUBJECTS;
+}
+
+type SubjectKey = typeof ALL_SUBJECTS[number]["key"];
 
 interface SubjectMarks {
   hindi?: string;
   english?: string;
   math?: string;
+  evs?: string;
   science?: string;
   socialScience?: string;
   sanskrit?: string;
@@ -123,7 +155,7 @@ interface CalendarEventForm {
 }
 
 const emptySubjects: SubjectMarks = {
-  hindi: "", english: "", math: "", science: "",
+  hindi: "", english: "", math: "", evs: "", science: "",
   socialScience: "", sanskrit: "", computerScience: "",
 };
 
@@ -205,10 +237,52 @@ export default function Admin() {
 
   // Fees queries & mutations
   const [feeClassFilter, setFeeClassFilter] = useState("all");
-  const allFees = useQuery(api.admin.listAllFees, { classFilter: feeClassFilter });
+  const [feeSessionFilter, setFeeSessionFilter] = useState("all");
+  const allFees = useQuery(api.admin.listAllFees, {
+    classFilter: feeClassFilter,
+    academicYearFilter: feeSessionFilter !== "all" ? feeSessionFilter : undefined,
+  });
   const assignFeeMutation = useMutation(api.admin.assignFeeStructure);
   const recordFeePaymentMutation = useMutation(api.admin.recordFeePayment);
   const removeFeeMutation = useMutation(api.admin.removeFee);
+
+  // Protected Fee Summary PIN Gate (Server-Verified PIN: 1982)
+  const [feeSummaryPin, setFeeSummaryPin] = useState<string | null>(null);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [enteredPin, setEnteredPin] = useState("");
+  const [pinError, setPinError] = useState("");
+
+  const protectedFeeStats = useQuery(
+    api.admin.getProtectedFeeStats,
+    feeSummaryPin ? { pin: feeSummaryPin } : "skip"
+  );
+
+  useEffect(() => {
+    if (feeSummaryPin && protectedFeeStats !== undefined) {
+      if (protectedFeeStats.authorized) {
+        setPinModalOpen(false);
+        setPinError("");
+        toast.success("Fee summary statistics unlocked!");
+      } else {
+        setPinError("Invalid security PIN. Access denied.");
+        setFeeSummaryPin(null);
+      }
+    }
+  }, [protectedFeeStats, feeSummaryPin]);
+
+  const handleLockFeeSummary = () => {
+    setFeeSummaryPin(null);
+    setEnteredPin("");
+    setPinError("");
+    toast.info("Fee summary statistics locked.");
+  };
+
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enteredPin.trim()) return;
+    setPinError("");
+    setFeeSummaryPin(enteredPin.trim());
+  };
 
   // Academic Sessions & Multi-Year History Hooks & State
   const allSessions = useQuery(api.academicSessions.list);
@@ -267,6 +341,7 @@ export default function Admin() {
     title: "Tuition Fee - Term 1",
     amount: "1200",
     dueDate: new Date().toISOString().split("T")[0],
+    academicYear: "2025-26",
   });
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -388,18 +463,25 @@ export default function Admin() {
     if (studentYearResults && studentModalOpen) {
       const hySub: SubjectMarks = { ...emptySubjects };
       const fnSub: SubjectMarks = { ...emptySubjects };
+      const targetClass = studentYearResults.class || studentForm.class || "1st";
 
       if (studentYearResults.halfYearly?.subjects) {
-        SUBJECTS.forEach((sub) => {
+        ALL_SUBJECTS.forEach((sub) => {
           const val = studentYearResults.halfYearly.subjects[sub.key];
           if (val !== undefined) hySub[sub.key] = String(val);
         });
+        if (isPrimaryClass(targetClass) && !hySub.evs && (studentYearResults.halfYearly.subjects as any).science !== undefined) {
+          hySub.evs = String((studentYearResults.halfYearly.subjects as any).science);
+        }
       }
       if (studentYearResults.final?.subjects) {
-        SUBJECTS.forEach((sub) => {
+        ALL_SUBJECTS.forEach((sub) => {
           const val = studentYearResults.final.subjects[sub.key];
           if (val !== undefined) fnSub[sub.key] = String(val);
         });
+        if (isPrimaryClass(targetClass) && !fnSub.evs && (studentYearResults.final.subjects as any).science !== undefined) {
+          fnSub.evs = String((studentYearResults.final.subjects as any).science);
+        }
       }
 
       setStudentForm((prev) => ({
@@ -558,17 +640,23 @@ export default function Admin() {
     const fnSub: SubjectMarks = { ...emptySubjects };
 
     if (s.subjects?.halfYearly) {
-      SUBJECTS.forEach((sub) => {
+      ALL_SUBJECTS.forEach((sub) => {
         const val = s.subjects.halfYearly[sub.key];
         if (val !== undefined) hySub[sub.key] = String(val);
       });
+      if (isPrimaryClass(s.class) && !hySub.evs && (s.subjects.halfYearly as any).science !== undefined) {
+        hySub.evs = String((s.subjects.halfYearly as any).science);
+      }
     }
 
     if (s.subjects?.final) {
-      SUBJECTS.forEach((sub) => {
+      ALL_SUBJECTS.forEach((sub) => {
         const val = s.subjects.final[sub.key];
         if (val !== undefined) fnSub[sub.key] = String(val);
       });
+      if (isPrimaryClass(s.class) && !fnSub.evs && (s.subjects.final as any).science !== undefined) {
+        fnSub.evs = String((s.subjects.final as any).science);
+      }
     }
 
     setStudentForm({
@@ -595,10 +683,14 @@ export default function Admin() {
   const handleSaveStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const currentYearClass = studentForm.yearClass || studentForm.class || "1st";
+      const applicableSubs = getSubjectsForClass(currentYearClass);
+      const applicableKeys = new Set(applicableSubs.map((sub) => sub.key));
+
       const parseSubjectObject = (subObj: SubjectMarks) => {
         const res: Record<string, number> = {};
         for (const [k, v] of Object.entries(subObj)) {
-          if (v !== "" && v !== undefined && !isNaN(Number(v))) {
+          if (applicableKeys.has(k as any) && v !== "" && v !== undefined && !isNaN(Number(v))) {
             res[k] = Number(v);
           }
         }
@@ -713,6 +805,7 @@ export default function Admin() {
         title: feeForm.title.trim(),
         amount: Number(feeForm.amount),
         dueDate: feeForm.dueDate,
+        academicYear: feeForm.academicYear || currentSession?.year || "2025-26",
       });
       toast.success(`Fee structure assigned to ${res.count} student(s)!`);
       setFeeModalOpen(false);
@@ -838,20 +931,89 @@ export default function Admin() {
               <BookOpen className="w-7 h-7 text-blue-500/60" />
             </CardContent>
           </Card>
-          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
+          {/* Card 3: Total Assigned Fee (PIN-gated) */}
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm relative overflow-hidden">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500">Total Assigned Fee</p>
-                <p className="text-2xl font-bold text-emerald-600">₹{(stats?.totalAssignedFee || 0).toLocaleString("en-IN")}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-medium text-slate-500">Total Assigned Fee</p>
+                  {protectedFeeStats?.authorized ? (
+                    <button
+                      onClick={handleLockFeeSummary}
+                      title="Click to lock fee summary"
+                      className="text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                    </button>
+                  ) : (
+                    <Lock className="w-3 h-3 text-slate-400" />
+                  )}
+                </div>
+                {protectedFeeStats?.authorized ? (
+                  <p className="text-2xl font-bold text-emerald-600">
+                    ₹{(protectedFeeStats.totalAssignedFee || 0).toLocaleString("en-IN")}
+                  </p>
+                ) : (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xl font-bold text-slate-400 tracking-widest">••••••</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEnteredPin("");
+                        setPinError("");
+                        setPinModalOpen(true);
+                      }}
+                      className="h-6 px-2 text-[11px] font-bold border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                    >
+                      Enter PIN
+                    </Button>
+                  </div>
+                )}
               </div>
               <DollarSign className="w-7 h-7 text-emerald-500/60" />
             </CardContent>
           </Card>
-          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
+
+          {/* Card 4: Overdue Fees (PIN-gated) */}
+          <Card className="bg-white border-slate-200 text-slate-900 shadow-sm relative overflow-hidden">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500">Overdue Fees</p>
-                <p className="text-2xl font-bold text-red-600">{stats?.overdueFeesCount ?? 0}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-medium text-slate-500">Overdue Fees</p>
+                  {protectedFeeStats?.authorized ? (
+                    <button
+                      onClick={handleLockFeeSummary}
+                      title="Click to lock fee summary"
+                      className="text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      <Lock className="w-3 h-3 text-red-600" />
+                    </button>
+                  ) : (
+                    <Lock className="w-3 h-3 text-slate-400" />
+                  )}
+                </div>
+                {protectedFeeStats?.authorized ? (
+                  <p className="text-2xl font-bold text-red-600">
+                    {protectedFeeStats.overdueFeesCount ?? 0}
+                  </p>
+                ) : (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xl font-bold text-slate-400 tracking-widest">••••••</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEnteredPin("");
+                        setPinError("");
+                        setPinModalOpen(true);
+                      }}
+                      className="h-6 px-2 text-[11px] font-bold border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                    >
+                      Enter PIN
+                    </Button>
+                  </div>
+                )}
               </div>
               <CreditCard className="w-7 h-7 text-red-500/60" />
             </CardContent>
@@ -998,9 +1160,16 @@ export default function Admin() {
                               </td>
                               <td className="p-3 text-slate-600">{s.mobileNumber || "—"}</td>
                               <td className="p-3 font-mono text-xs text-slate-600">{s.samagraId || "—"}</td>
-                              <td className="p-3 font-mono text-xs text-slate-600">{s.dkNumber || "—"}</td>
-                              <td className="p-3 font-semibold text-slate-800">{s.halfYearlyMarks ?? "—"}</td>
-                              <td className="p-3 font-semibold text-slate-800">{s.finalMarks ?? "—"}</td>
+                              <td className="p-3 font-semibold text-slate-800">
+                                {s.halfYearlyMarks !== undefined ? (
+                                  <span className="font-mono text-amber-800">{s.halfYearlyMarks} <span className="text-[11px] text-slate-400 font-normal">/ 600</span></span>
+                                ) : "—"}
+                              </td>
+                              <td className="p-3 font-semibold text-slate-800">
+                                {s.finalMarks !== undefined ? (
+                                  <span className="font-mono text-emerald-800">{s.finalMarks} <span className="text-[11px] text-slate-400 font-normal">/ 600</span></span>
+                                ) : "—"}
+                              </td>
                               <td className="p-3 text-right">
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
@@ -1042,7 +1211,19 @@ export default function Admin() {
                     Assign fee structures (tuition, transport, exam fees) and record payments per student.
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                  <select
+                    value={feeSessionFilter}
+                    onChange={(e) => setFeeSessionFilter(e.target.value)}
+                    className="bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
+                  >
+                    <option value="all">All Sessions</option>
+                    {(allSessions || []).map((s) => (
+                      <option key={s.year} value={s.year}>
+                        Session {s.year} {s.isCurrent ? "(Active)" : ""}
+                      </option>
+                    ))}
+                  </select>
                   <select
                     value={feeClassFilter}
                     onChange={(e) => setFeeClassFilter(e.target.value)}
@@ -1054,8 +1235,11 @@ export default function Admin() {
                     ))}
                   </select>
                   <Button
-                    onClick={() => setFeeModalOpen(true)}
-                    className="bg-[#0a2540] text-white font-bold hover:bg-[#0f3256] text-xs sm:text-sm shadow-sm"
+                    onClick={() => {
+                      setFeeForm((prev) => ({ ...prev, academicYear: currentSession?.year || "2025-26" }));
+                      setFeeModalOpen(true);
+                    }}
+                    className="bg-[#0a2540] text-white font-bold hover:bg-[#0f3256] text-xs sm:text-sm shadow-sm whitespace-nowrap"
                   >
                     <Plus className="w-4 h-4 mr-1.5" /> Assign Fee Installment
                   </Button>
@@ -1070,6 +1254,7 @@ export default function Admin() {
                         <th className="p-3">Student Name</th>
                         <th className="p-3">Roll</th>
                         <th className="p-3">Class</th>
+                        <th className="p-3">Session</th>
                         <th className="p-3">Fee Title</th>
                         <th className="p-3">Total Fee</th>
                         <th className="p-3">Paid Amount</th>
@@ -1082,7 +1267,7 @@ export default function Admin() {
                     <tbody className="divide-y divide-slate-100">
                       {!allFees || allFees.length === 0 ? (
                         <tr>
-                          <td colSpan={10} className="p-8 text-center text-slate-400">
+                          <td colSpan={11} className="p-8 text-center text-slate-400">
                             No fee records assigned yet. Use <strong>"Assign Fee Installment"</strong> above to define tuition/exam fees.
                           </td>
                         </tr>
@@ -1109,6 +1294,11 @@ export default function Admin() {
                               <td className="p-3">
                                 <Badge variant="secondary" className="bg-slate-100 text-slate-800">
                                   {fee.class}
+                                </Badge>
+                              </td>
+                              <td className="p-3">
+                                <Badge variant="outline" className="border-slate-300 text-slate-700 font-semibold text-[11px]">
+                                  {fee.academicYear || "2025-26"}
                                 </Badge>
                               </td>
                               <td className="p-3 font-medium text-slate-800">{fee.title}</td>
@@ -2038,73 +2228,106 @@ export default function Admin() {
                 </div>
               </div>
 
-              {/* Half Yearly Subjects */}
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-slate-800">1. Half Yearly Examination</p>
-                  <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-xs font-bold font-mono">
-                    Total: {Object.values(studentForm.halfYearlySubjects).reduce((acc, v) => acc + (v !== "" && !isNaN(Number(v)) ? Number(v) : 0), 0)} / 700
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {SUBJECTS.map((sub) => (
-                    <div key={sub.key} className="space-y-1">
-                      <label className="text-[11px] text-slate-600 font-medium">{sub.label}</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        placeholder="Marks (0-100)"
-                        value={studentForm.halfYearlySubjects[sub.key] || ""}
-                        onChange={(e) =>
-                          setStudentForm({
-                            ...studentForm,
-                            halfYearlySubjects: {
-                              ...studentForm.halfYearlySubjects,
-                              [sub.key]: e.target.value,
-                            },
-                          })
-                        }
-                        className="bg-white border-slate-300 text-xs text-slate-900 h-8"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Dynamic Subjects & Marks Entry based on selected class */}
+              {(() => {
+                const activeYearClass = studentForm.yearClass || studentForm.class || "1st";
+                const activeSubjects = getSubjectsForClass(activeYearClass);
+                const activeMaxTotal = activeSubjects.length * 100;
+                const hySum = activeSubjects.reduce((acc, sub) => {
+                  const val = studentForm.halfYearlySubjects[sub.key];
+                  return acc + (val !== undefined && val !== "" && !isNaN(Number(val)) ? Number(val) : 0);
+                }, 0);
+                const fnSum = activeSubjects.reduce((acc, sub) => {
+                  const val = studentForm.finalSubjects[sub.key];
+                  return acc + (val !== undefined && val !== "" && !isNaN(Number(val)) ? Number(val) : 0);
+                }, 0);
 
-              {/* Final Subjects */}
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-slate-800">2. Final Examination</p>
-                  <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 text-xs font-bold font-mono">
-                    Total: {Object.values(studentForm.finalSubjects).reduce((acc, v) => acc + (v !== "" && !isNaN(Number(v)) ? Number(v) : 0), 0)} / 700
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {SUBJECTS.map((sub) => (
-                    <div key={sub.key} className="space-y-1">
-                      <label className="text-[11px] text-slate-600 font-medium">{sub.label}</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        placeholder="Marks (0-100)"
-                        value={studentForm.finalSubjects[sub.key] || ""}
-                        onChange={(e) =>
-                          setStudentForm({
-                            ...studentForm,
-                            finalSubjects: {
-                              ...studentForm.finalSubjects,
-                              [sub.key]: e.target.value,
-                            },
-                          })
-                        }
-                        className="bg-white border-slate-300 text-xs text-slate-900 h-8"
-                      />
+                return (
+                  <>
+                    {/* Half Yearly Subjects */}
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">1. Half Yearly Examination</p>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            {isPrimaryClass(activeYearClass)
+                              ? "Primary (Class 1–4): Hindi, English, Math, EVS, Social Science, Computer Science"
+                              : "Middle (Class 5–8): Hindi, English, Math, Science, Social Science, Sanskrit"}
+                          </p>
+                        </div>
+                        <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-xs font-bold font-mono">
+                          Total: {hySum} / {activeMaxTotal}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {activeSubjects.map((sub) => (
+                          <div key={sub.key} className="space-y-1">
+                            <label className="text-[11px] text-slate-600 font-medium">{sub.label}</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              placeholder="Marks (0-100)"
+                              value={studentForm.halfYearlySubjects[sub.key] || ""}
+                              onChange={(e) =>
+                                setStudentForm({
+                                  ...studentForm,
+                                  halfYearlySubjects: {
+                                    ...studentForm.halfYearlySubjects,
+                                    [sub.key]: e.target.value,
+                                  },
+                                })
+                              }
+                              className="bg-white border-slate-300 text-xs text-slate-900 h-8"
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
+
+                    {/* Final Subjects */}
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">2. Final Examination</p>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            {isPrimaryClass(activeYearClass)
+                              ? "Primary (Class 1–4): Hindi, English, Math, EVS, Social Science, Computer Science"
+                              : "Middle (Class 5–8): Hindi, English, Math, Science, Social Science, Sanskrit"}
+                          </p>
+                        </div>
+                        <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 text-xs font-bold font-mono">
+                          Total: {fnSum} / {activeMaxTotal}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {activeSubjects.map((sub) => (
+                          <div key={sub.key} className="space-y-1">
+                            <label className="text-[11px] text-slate-600 font-medium">{sub.label}</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              placeholder="Marks (0-100)"
+                              value={studentForm.finalSubjects[sub.key] || ""}
+                              onChange={(e) =>
+                                setStudentForm({
+                                  ...studentForm,
+                                  finalSubjects: {
+                                    ...studentForm.finalSubjects,
+                                    [sub.key]: e.target.value,
+                                  },
+                                })
+                              }
+                              className="bg-white border-slate-300 text-xs text-slate-900 h-8"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             <DialogFooter className="pt-4 border-t border-slate-200">
@@ -2129,6 +2352,22 @@ export default function Admin() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAssignFee} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Academic Session *</label>
+              <select
+                value={feeForm.academicYear || currentSession?.year || "2025-26"}
+                onChange={(e) => setFeeForm({ ...feeForm, academicYear: e.target.value })}
+                className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm text-slate-900 font-medium"
+                required
+              >
+                {(allSessions || []).map((s) => (
+                  <option key={s.year} value={s.year}>
+                    Session {s.year} {s.isCurrent ? "(Current Active)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-700">Target Assignment</label>
               <select
@@ -2690,6 +2929,62 @@ export default function Admin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* DIALOG: PIN AUTHENTICATION FOR FEE SUMMARY */}
+      <Dialog open={pinModalOpen} onOpenChange={setPinModalOpen}>
+        <DialogContent className="max-w-sm bg-white border-slate-200 text-slate-900">
+          <DialogHeader>
+            <div className="mx-auto w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center mb-2">
+              <Lock className="w-5 h-5 text-amber-700" />
+            </div>
+            <DialogTitle className="text-lg text-center text-[#0a2540]">
+              Unlock Fee Financial Summary
+            </DialogTitle>
+            <DialogDescription className="text-center text-xs text-slate-500">
+              Enter the 4-digit Administrator Security PIN to reveal institutional fee statistics.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePinSubmit} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <Input
+                type="password"
+                maxLength={4}
+                autoFocus
+                placeholder="••••"
+                value={enteredPin}
+                onChange={(e) => {
+                  setEnteredPin(e.target.value);
+                  setPinError("");
+                }}
+                className="text-center text-2xl tracking-[0.5em] font-mono font-bold bg-slate-50 border-slate-300 h-12"
+              />
+              {pinError && (
+                <p className="text-xs text-red-600 font-semibold text-center mt-1">{pinError}</p>
+              )}
+            </div>
+            <DialogFooter className="pt-2 flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setPinModalOpen(false);
+                  setEnteredPin("");
+                  setPinError("");
+                }}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="w-full sm:w-auto bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold"
+              >
+                Unlock Stats
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
