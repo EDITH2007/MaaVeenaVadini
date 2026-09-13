@@ -154,16 +154,21 @@ export const listStudentAchievements = query({
 });
 
 export const listAllAchievements = query({
-  args: { classFilter: v.optional(v.string()) },
+  args: {
+    classFilter: v.optional(v.string()),
+    academicYearFilter: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const achievements = await ctx.db.query("achievements").take(500);
     const students = await ctx.db.query("students").take(500);
     const studentMap = new Map(students.map((s) => [s._id, s]));
 
-    const combined = achievements.map((ach) => {
+    let combined = achievements.map((ach) => {
       const s = studentMap.get(ach.studentId);
+      const year = ach.academicYear || (ach.date ? ach.date.split("-")[0] + "-" + String((parseInt(ach.date.split("-")[0], 10) + 1) % 100).padStart(2, "0") : "2025-26");
       return {
         ...ach,
+        academicYear: year,
         studentName: s?.name || "Unknown Student",
         rollNumber: s?.rollNumber || "N/A",
         class: s?.class || "N/A",
@@ -171,7 +176,10 @@ export const listAllAchievements = query({
     });
 
     if (args.classFilter && args.classFilter !== "all") {
-      return combined.filter((ach) => ach.class === args.classFilter);
+      combined = combined.filter((ach) => ach.class === args.classFilter);
+    }
+    if (args.academicYearFilter && args.academicYearFilter !== "all") {
+      combined = combined.filter((ach) => ach.academicYear === args.academicYearFilter);
     }
     return combined;
   },
@@ -185,6 +193,7 @@ export const addAchievement = mutation({
     date: v.string(),
     certificateUrl: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    academicYear: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await checkAdmin(ctx);
@@ -201,6 +210,7 @@ export const updateAchievement = mutation({
     date: v.string(),
     certificateUrl: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    academicYear: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await checkAdmin(ctx);

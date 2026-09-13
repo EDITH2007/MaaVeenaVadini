@@ -69,10 +69,19 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
 
   const studentProfile = useQuery(api.studentDashboard.getMyProfile);
-  const achievements = useQuery(api.studentDashboard.getMyAchievements);
+  const [achievementSessionFilter, setAchievementSessionFilter] = useState("all");
+  const achievements = useQuery(api.studentDashboard.getMyAchievements, {
+    academicYearFilter: achievementSessionFilter !== "all" ? achievementSessionFilter : undefined,
+  });
   const fees = useQuery(api.studentDashboard.getMyFees);
   const attendance = useQuery(api.studentDashboard.getMyAttendance);
   const calendarEvents = useQuery(api.calendar.listPublicEvents);
+
+  // Multi-Year Results Queries
+  const academicYearsData = useQuery(api.studentDashboard.getMyAcademicYears);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string | null>(null);
+  const activeYear = selectedAcademicYear || academicYearsData?.currentYear || "2025-26";
+  const yearResults = useQuery(api.studentDashboard.getMyResultsByYear, { academicYear: activeYear });
 
   const requestProfileChange = useMutation(api.studentDashboard.requestProfileChange);
 
@@ -386,145 +395,241 @@ export default function StudentDashboard() {
           <TabsContent value="results" className="space-y-6">
             <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
               <CardHeader className="border-b border-slate-100 pb-4">
-                <CardTitle className="text-xl text-[#0a2540] flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-amber-600" />
-                  Academic Examination Results
-                </CardTitle>
-                <CardDescription className="text-slate-500 text-xs">
-                  Detailed subject-wise breakdown for Half Yearly and Final Examinations displayed as separate tables.
-                </CardDescription>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-xl text-[#0a2540] flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-amber-600" />
+                      Academic Examination Results
+                    </CardTitle>
+                    <CardDescription className="text-slate-500 text-xs">
+                      Subject-wise breakdown for Half Yearly and Final Examinations across all enrolled academic sessions.
+                    </CardDescription>
+                  </div>
+
+                  {/* Enrolled Class Tag */}
+                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+                    <span className="text-xs text-amber-800 font-medium">Session Enrolled Class:</span>
+                    <Badge className="bg-amber-500 text-slate-950 font-bold text-xs">
+                      Class {yearResults?.class || s?.class || "1st"}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Academic Session Selector Pills */}
+                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider mr-1">
+                    Academic Session:
+                  </span>
+                  {(academicYearsData?.years || ["2025-26"]).map((yr) => {
+                    const isSelected = activeYear === yr;
+                    const isLive = yr === (academicYearsData?.currentYear || "2025-26");
+                    return (
+                      <button
+                        key={yr}
+                        onClick={() => setSelectedAcademicYear(yr)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          isSelected
+                            ? "bg-[#0a2540] text-white shadow-sm ring-2 ring-amber-500/50"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                        }`}
+                      >
+                        <span>Session {yr}</span>
+                        {isLive && (
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? "bg-amber-400 text-slate-950" : "bg-emerald-100 text-emerald-800"}`}>
+                            Active
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </CardHeader>
 
               <CardContent className="pt-6 space-y-8">
-                {/* 1. HALF YEARLY EXAMINATION TABLE */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-base text-[#0a2540] flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-600" />
-                      1. Half Yearly Examination Results
-                    </h3>
-                    {s?.halfYearlyMarks !== undefined && (
-                      <Badge className="bg-amber-100 text-amber-800 border-amber-300 font-semibold">
-                        Total Marks: {s.halfYearlyMarks}
-                      </Badge>
-                    )}
-                  </div>
+                {(() => {
+                  const hyData = yearResults?.halfYearly ?? {
+                    subjects: (s?.subjects?.halfYearly as any) || {},
+                    total: s?.halfYearlyMarks,
+                    maxTotal: 700,
+                    isTotalOnly: !s?.subjects?.halfYearly && s?.halfYearlyMarks !== undefined,
+                    grade: s?.halfYearlyMarks !== undefined ? getGrade(Math.round(s.halfYearlyMarks / 7))?.grade : undefined,
+                  };
 
-                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                    <table className="w-full text-xs sm:text-sm text-left">
-                      <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-semibold">
-                        <tr>
-                          <th className="p-3">Subject Name</th>
-                          <th className="p-3 text-right">Max Marks</th>
-                          <th className="p-3 text-right">Marks Obtained</th>
-                          <th className="p-3 text-right">Grade</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {SUBJECTS.map((sub) => {
-                          const val = s?.subjects?.halfYearly?.[sub.key as keyof typeof s.subjects.halfYearly];
-                          const g = getGrade(val);
-                          return (
-                            <tr key={sub.key} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="p-3 font-semibold text-slate-800">{sub.label}</td>
-                              <td className="p-3 text-right text-slate-500 font-mono">100</td>
-                              <td className="p-3 text-right font-bold text-slate-900">
-                                {val !== undefined ? val : "—"}
-                              </td>
-                              <td className="p-3 text-right">
-                                {g ? (
-                                  <Badge className={g.color}>{g.grade}</Badge>
-                                ) : (
-                                  <span className="text-slate-400 text-xs">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {/* Total Row */}
-                        <tr className="bg-slate-100/80 font-bold border-t-2 border-slate-200">
-                          <td className="p-3 text-slate-900">Half Yearly Total Score</td>
-                          <td className="p-3 text-right font-mono text-slate-600">700</td>
-                          <td className="p-3 text-right font-bold text-amber-700 text-base">
-                            {s?.halfYearlyMarks !== undefined ? s.halfYearlyMarks : "N/A"}
-                          </td>
-                          <td className="p-3 text-right">
-                            {s?.halfYearlyMarks !== undefined && (
-                              <Badge className={getGrade(Math.round(s.halfYearlyMarks / 7))?.color || ""}>
-                                {getGrade(Math.round(s.halfYearlyMarks / 7))?.grade} Overall
-                              </Badge>
-                            )}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                  const fnData = yearResults?.final ?? {
+                    subjects: (s?.subjects?.final as any) || {},
+                    total: s?.finalMarks,
+                    maxTotal: 700,
+                    isTotalOnly: !s?.subjects?.final && s?.finalMarks !== undefined,
+                    grade: s?.finalMarks !== undefined ? getGrade(Math.round(s.finalMarks / 7))?.grade : undefined,
+                  };
 
-                {/* 2. FINAL EXAMINATION TABLE */}
-                <div className="space-y-3 pt-4 border-t border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-base text-[#0a2540] flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4 text-emerald-600" />
-                      2. Final Examination Results
-                    </h3>
-                    {s?.finalMarks !== undefined && (
-                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold">
-                        Total Marks: {s.finalMarks}
-                      </Badge>
-                    )}
-                  </div>
+                  const hasHy = hyData.total !== undefined || Object.keys(hyData.subjects || {}).length > 0;
+                  const hasFn = fnData.total !== undefined || Object.keys(fnData.subjects || {}).length > 0;
 
-                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                    <table className="w-full text-xs sm:text-sm text-left">
-                      <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-semibold">
-                        <tr>
-                          <th className="p-3">Subject Name</th>
-                          <th className="p-3 text-right">Max Marks</th>
-                          <th className="p-3 text-right">Marks Obtained</th>
-                          <th className="p-3 text-right">Grade</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {SUBJECTS.map((sub) => {
-                          const val = s?.subjects?.final?.[sub.key as keyof typeof s.subjects.final];
-                          const g = getGrade(val);
-                          return (
-                            <tr key={sub.key} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="p-3 font-semibold text-slate-800">{sub.label}</td>
-                              <td className="p-3 text-right text-slate-500 font-mono">100</td>
-                              <td className="p-3 text-right font-bold text-slate-900">
-                                {val !== undefined ? val : "—"}
-                              </td>
-                              <td className="p-3 text-right">
-                                {g ? (
-                                  <Badge className={g.color}>{g.grade}</Badge>
-                                ) : (
-                                  <span className="text-slate-400 text-xs">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {/* Total Row */}
-                        <tr className="bg-slate-100/80 font-bold border-t-2 border-slate-200">
-                          <td className="p-3 text-slate-900">Final Examination Total Score</td>
-                          <td className="p-3 text-right font-mono text-slate-600">700</td>
-                          <td className="p-3 text-right font-bold text-emerald-700 text-base">
-                            {s?.finalMarks !== undefined ? s.finalMarks : "N/A"}
-                          </td>
-                          <td className="p-3 text-right">
-                            {s?.finalMarks !== undefined && (
-                              <Badge className={getGrade(Math.round(s.finalMarks / 7))?.color || ""}>
-                                {getGrade(Math.round(s.finalMarks / 7))?.grade} Overall
-                              </Badge>
-                            )}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                  if (!hasHy && !hasFn) {
+                    return (
+                      <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl text-slate-500">
+                        <BookOpen className="w-10 h-10 mx-auto text-slate-400 mb-2" />
+                        <p className="font-semibold text-slate-800">No examination records logged for session {activeYear}.</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Marks will appear here once recorded by the school administration for this session.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {/* 1. HALF YEARLY EXAMINATION TABLE */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-bold text-base text-[#0a2540] flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-amber-600" />
+                            1. Half Yearly Examination Results ({activeYear})
+                          </h3>
+                          {hyData.total !== undefined && (
+                            <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-bold">
+                              Total Marks: {hyData.total} / {hyData.maxTotal || 700}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {hyData.isTotalOnly && (
+                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center justify-between">
+                            <span>Historical Total-Only Record (Subject-level breakdown not entered for this session)</span>
+                            <Badge variant="outline" className="text-[10px] bg-white border-amber-300 text-amber-800">
+                              Total Only
+                            </Badge>
+                          </div>
+                        )}
+
+                        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                          <table className="w-full text-xs sm:text-sm text-left">
+                            <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-semibold">
+                              <tr>
+                                <th className="p-3">Subject Name</th>
+                                <th className="p-3 text-right">Max Marks</th>
+                                <th className="p-3 text-right">Marks Obtained</th>
+                                <th className="p-3 text-right">Grade</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {SUBJECTS.map((sub) => {
+                                const val = hyData.subjects?.[sub.key];
+                                const g = getGrade(val);
+                                return (
+                                  <tr key={sub.key} className="hover:bg-slate-50/80 transition-colors">
+                                    <td className="p-3 font-semibold text-slate-800">{sub.label}</td>
+                                    <td className="p-3 text-right text-slate-500 font-mono">100</td>
+                                    <td className="p-3 text-right font-bold text-slate-900">
+                                      {val !== undefined ? val : "—"}
+                                    </td>
+                                    <td className="p-3 text-right">
+                                      {g ? (
+                                        <Badge className={g.color}>{g.grade}</Badge>
+                                      ) : (
+                                        <span className="text-slate-400 text-xs">—</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {/* Total Row */}
+                              <tr className="bg-slate-100/80 font-bold border-t-2 border-slate-200">
+                                <td className="p-3 text-slate-900">Half Yearly Total Score</td>
+                                <td className="p-3 text-right font-mono text-slate-600">{hyData.maxTotal || 700}</td>
+                                <td className="p-3 text-right font-bold text-amber-700 text-base">
+                                  {hyData.total !== undefined ? hyData.total : "N/A"}
+                                </td>
+                                <td className="p-3 text-right">
+                                  {hyData.total !== undefined && (
+                                    <Badge className={getGrade(Math.round(hyData.total / 7))?.color || ""}>
+                                      {getGrade(Math.round(hyData.total / 7))?.grade} Overall
+                                    </Badge>
+                                  )}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* 2. FINAL EXAMINATION TABLE */}
+                      <div className="space-y-3 pt-4 border-t border-slate-200">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-bold text-base text-[#0a2540] flex items-center gap-2">
+                            <GraduationCap className="w-4 h-4 text-emerald-600" />
+                            2. Final Examination Results ({activeYear})
+                          </h3>
+                          {fnData.total !== undefined && (
+                            <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 font-bold">
+                              Total Marks: {fnData.total} / {fnData.maxTotal || 700}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {fnData.isTotalOnly && (
+                          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center justify-between">
+                            <span>Historical Total-Only Record (Subject-level breakdown not entered for this session)</span>
+                            <Badge variant="outline" className="text-[10px] bg-white border-emerald-300 text-emerald-800">
+                              Total Only
+                            </Badge>
+                          </div>
+                        )}
+
+                        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                          <table className="w-full text-xs sm:text-sm text-left">
+                            <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-semibold">
+                              <tr>
+                                <th className="p-3">Subject Name</th>
+                                <th className="p-3 text-right">Max Marks</th>
+                                <th className="p-3 text-right">Marks Obtained</th>
+                                <th className="p-3 text-right">Grade</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {SUBJECTS.map((sub) => {
+                                const val = fnData.subjects?.[sub.key];
+                                const g = getGrade(val);
+                                return (
+                                  <tr key={sub.key} className="hover:bg-slate-50/80 transition-colors">
+                                    <td className="p-3 font-semibold text-slate-800">{sub.label}</td>
+                                    <td className="p-3 text-right text-slate-500 font-mono">100</td>
+                                    <td className="p-3 text-right font-bold text-slate-900">
+                                      {val !== undefined ? val : "—"}
+                                    </td>
+                                    <td className="p-3 text-right">
+                                      {g ? (
+                                        <Badge className={g.color}>{g.grade}</Badge>
+                                      ) : (
+                                        <span className="text-slate-400 text-xs">—</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {/* Total Row */}
+                              <tr className="bg-slate-100/80 font-bold border-t-2 border-slate-200">
+                                <td className="p-3 text-slate-900">Final Examination Total Score</td>
+                                <td className="p-3 text-right font-mono text-slate-600">{fnData.maxTotal || 700}</td>
+                                <td className="p-3 text-right font-bold text-emerald-700 text-base">
+                                  {fnData.total !== undefined ? fnData.total : "N/A"}
+                                </td>
+                                <td className="p-3 text-right">
+                                  {fnData.total !== undefined && (
+                                    <Badge className={getGrade(Math.round(fnData.total / 7))?.color || ""}>
+                                      {getGrade(Math.round(fnData.total / 7))?.grade} Overall
+                                    </Badge>
+                                  )}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
@@ -710,13 +815,32 @@ export default function StudentDashboard() {
           <TabsContent value="achievements" className="space-y-6">
             <Card className="bg-white border-slate-200 text-slate-900 shadow-sm">
               <CardHeader className="border-b border-slate-100 pb-4">
-                <CardTitle className="text-xl text-[#0a2540] flex items-center gap-2">
-                  <Award className="w-5 h-5 text-amber-600" />
-                  Student Achievements & Honors
-                </CardTitle>
-                <CardDescription className="text-slate-500 text-xs">
-                  Academic, sports, and co-curricular milestones recognized by the school.
-                </CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-xl text-[#0a2540] flex items-center gap-2">
+                      <Award className="w-5 h-5 text-amber-600" />
+                      Student Achievements & Honors
+                    </CardTitle>
+                    <CardDescription className="text-slate-500 text-xs">
+                      Academic, sports, and co-curricular milestones recognized across all enrolled school sessions.
+                    </CardDescription>
+                  </div>
+
+                  {/* Academic Session Filter (Full History by default) */}
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                    <span className="text-xs font-bold text-slate-600">Filter Session:</span>
+                    <select
+                      value={achievementSessionFilter}
+                      onChange={(e) => setAchievementSessionFilter(e.target.value)}
+                      className="text-xs bg-white border border-slate-300 rounded-md px-2.5 py-1 text-slate-800 font-semibold focus:outline-none"
+                    >
+                      <option value="all">All Sessions (Full History)</option>
+                      {(academicYearsData?.years || ["2025-26"]).map((yr) => (
+                        <option key={yr} value={yr}>Session {yr}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="pt-6">
                 {achievements && achievements.length > 0 ? (
@@ -728,9 +852,14 @@ export default function StudentDashboard() {
                           <div className="space-y-2">
                             <div className="flex justify-between items-start gap-2">
                               <h4 className="font-bold text-base text-[#0a2540]">{ach.title}</h4>
-                              <Badge variant="outline" className="border-amber-300 text-amber-800 bg-amber-50 text-xs shrink-0">
-                                {ach.date}
-                              </Badge>
+                              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                <Badge variant="outline" className="border-amber-300 text-amber-800 bg-amber-50 text-xs font-bold">
+                                  Session {ach.academicYear || "2025-26"}
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700">
+                                  {ach.date}
+                                </Badge>
+                              </div>
                             </div>
                             <p className="text-sm text-slate-600 leading-relaxed">{ach.description}</p>
                           </div>
@@ -761,7 +890,17 @@ export default function StudentDashboard() {
                 ) : (
                   <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-slate-500">
                     <Award className="w-10 h-10 mx-auto text-slate-400 mb-2" />
-                    <p className="text-sm">No achievements posted yet for this profile.</p>
+                    <p className="text-sm font-semibold text-slate-800">No achievements recorded for the selected filter.</p>
+                    {achievementSessionFilter !== "all" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setAchievementSessionFilter("all")}
+                        className="mt-2 text-xs text-amber-700 hover:text-amber-800"
+                      >
+                        Reset filter to view All Sessions
+                      </Button>
+                    )}
                   </div>
                 )}
               </CardContent>

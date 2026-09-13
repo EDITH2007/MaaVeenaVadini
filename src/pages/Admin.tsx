@@ -54,12 +54,13 @@ import {
   FileText,
   DollarSign,
   Check,
+  Layers,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 
 const ADMIN_PASSWORD = "MVVS@som145";
 
-type Tab = "students" | "fees" | "attendance" | "achievements" | "provisioning" | "notices" | "calendar" | "requests";
+type Tab = "students" | "fees" | "attendance" | "achievements" | "sessions" | "provisioning" | "notices" | "calendar" | "requests";
 
 const CLASSES = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
 const CATEGORIES = ["General", "OBC", "SC", "ST"];
@@ -100,6 +101,8 @@ interface StudentForm {
   dkNumber: string;
   halfYearlySubjects: SubjectMarks;
   finalSubjects: SubjectMarks;
+  selectedAcademicYear: string;
+  yearClass: string;
 }
 
 interface NoticeForm {
@@ -132,6 +135,8 @@ const emptyStudent: StudentForm = {
   aadharNumber: "", dkNumber: "",
   halfYearlySubjects: { ...emptySubjects },
   finalSubjects: { ...emptySubjects },
+  selectedAcademicYear: "2025-26",
+  yearClass: "1st",
 };
 
 const emptyNotice: NoticeForm = {
@@ -205,6 +210,26 @@ export default function Admin() {
   const recordFeePaymentMutation = useMutation(api.admin.recordFeePayment);
   const removeFeeMutation = useMutation(api.admin.removeFee);
 
+  // Academic Sessions & Multi-Year History Hooks & State
+  const allSessions = useQuery(api.academicSessions.list);
+  const currentSession = useQuery(api.academicSessions.getCurrent);
+  const createSessionMutation = useMutation(api.academicSessions.create);
+  const setCurrentSessionMutation = useMutation(api.academicSessions.setCurrent);
+  const deleteSessionMutation = useMutation(api.academicSessions.deleteSession);
+  const migrateMutation = useMutation(api.migration.migrateToMultiYear);
+  const migrationStatus = useQuery(api.migration.getMigrationStatus);
+  const saveStudentYearMarksMutation = useMutation(api.results.saveStudentYearMarks);
+
+  const [sessionModalOpen, setSessionModalOpen] = useState(false);
+  const [newSessionForm, setNewSessionForm] = useState({
+    year: "",
+    startDate: "2026-04-01",
+    endDate: "2027-03-31",
+    isCurrent: false,
+  });
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [selectedSessionForMarks, setSelectedSessionForMarks] = useState<string>("2025-26");
+
   // Student CRUD state
   const [searchQuery, setSearchQuery] = useState("");
   const [classFilter, setClassFilter] = useState("all");
@@ -212,6 +237,14 @@ export default function Admin() {
   const [editingStudentId, setEditingStudentId] = useState<Id<"students"> | null>(null);
   const [studentForm, setStudentForm] = useState<StudentForm>(emptyStudent);
   const [deleteStudentId, setDeleteStudentId] = useState<Id<"students"> | null>(null);
+
+  // Query year-scoped marks when editing a student and session is selected
+  const studentYearResults = useQuery(
+    api.results.getStudentResultsForYear,
+    editingStudentId && selectedSessionForMarks
+      ? { studentId: editingStudentId, academicYear: selectedSessionForMarks }
+      : "skip"
+  );
 
   // Notice CRUD state
   const [noticeModalOpen, setNoticeModalOpen] = useState(false);
@@ -256,25 +289,44 @@ export default function Admin() {
   const [attendanceStatusMap, setAttendanceStatusMap] = useState<Record<string, { status: "present" | "absent" | "leave"; remarks: string }>>({});
   const [isSavingAttendance, setIsSavingAttendance] = useState(false);
 
-  const classStudents = (students || []).filter((s) => s.class === attendanceClass);
+  const classStudents = (students || []).filter((s) => (s.class || "1st") === attendanceClass);
 
   useEffect(() => {
-    if (!students) return;
-    const existingMap = new Map((attendanceForDate || []).map((a: any) => [a.studentId, a]));
-    const nextMap: Record<string, { status: "present" | "absent" | "leave"; remarks: string }> = {};
-    classStudents.forEach((s) => {
-      const rec = existingMap.get(s._id);
-      nextMap[s._id] = {
-        status: rec ? rec.status : "present",
-        remarks: rec?.remarks || "",
-      };
-    });
-    setAttendanceStatusMap(nextMap);
-  }, [attendanceDate, attendanceClass, attendanceForDate, students]);
+    if (attendanceForDate && classStudents.length > 0) {
+      const existingMap: Record<string, { status: "present" | "absent" | "leave"; remarks: string }> = {};
+      const dateRecords = new Map(attendanceForDate.map((a) => [a.studentId, a]));
 
-  const handleSaveClassAttendance = async () => {
+      classStudents.forEach((s) => {
+        const record = dateRecords.get(s._id);
+        if (record) {
+          existingMap[s._id] = {
+            status: record.status,
+            remarks: record.remarks || "",
+          };
+        } else {
+          existingMap[s._id] = {
+            status: "present",
+            remarks: "",
+          };
+        }
+      });
+      setAttendanceStatusMap(existingMap);
+    }
+  }, [attendanceForDate, attendanceDate, attendanceClass, students]);
+
+  const handleAttendanceChange = (studentId: string, status: "present" | "absent" | "leave", remarks?: string) => {
+    setAttendanceStatusMap((prev) => ({
+      ...prev,
+      [studentId]: {
+        status,
+        remarks: remarks !== undefined ? remarks : prev[studentId]?.remarks || "",
+      },
+    }));
+  };
+
+  const handleSaveAttendance = async () => {
     if (classStudents.length === 0) {
-      toast.info("No students in selected class to record attendance for.");
+      toast.info("No students found in this class to record attendance for.");
       return;
     }
     setIsSavingAttendance(true);
@@ -310,7 +362,11 @@ export default function Admin() {
 
   // Achievements State & Hooks
   const [achievementClassFilter, setAchievementClassFilter] = useState("all");
-  const allAchievements = useQuery(api.admin.listAllAchievements, { classFilter: achievementClassFilter });
+  const [achievementYearFilter, setAchievementYearFilter] = useState("all");
+  const allAchievements = useQuery(api.admin.listAllAchievements, {
+    classFilter: achievementClassFilter,
+    academicYearFilter: achievementYearFilter,
+  });
   const addAchievementMutation = useMutation(api.admin.addAchievement);
   const updateAchievementMutation = useMutation(api.admin.updateAchievement);
   const removeAchievementMutation = useMutation(api.admin.removeAchievement);
@@ -323,8 +379,101 @@ export default function Admin() {
     description: "",
     date: new Date().toISOString().split("T")[0],
     certificateUrl: "",
+    academicYear: "2025-26",
   });
   const [deleteAchievementId, setDeleteAchievementId] = useState<Id<"achievements"> | null>(null);
+
+  // Sync marks when studentYearResults updates
+  useEffect(() => {
+    if (studentYearResults && studentModalOpen) {
+      const hySub: SubjectMarks = { ...emptySubjects };
+      const fnSub: SubjectMarks = { ...emptySubjects };
+
+      if (studentYearResults.halfYearly?.subjects) {
+        SUBJECTS.forEach((sub) => {
+          const val = studentYearResults.halfYearly.subjects[sub.key];
+          if (val !== undefined) hySub[sub.key] = String(val);
+        });
+      }
+      if (studentYearResults.final?.subjects) {
+        SUBJECTS.forEach((sub) => {
+          const val = studentYearResults.final.subjects[sub.key];
+          if (val !== undefined) fnSub[sub.key] = String(val);
+        });
+      }
+
+      setStudentForm((prev) => ({
+        ...prev,
+        yearClass: studentYearResults.class || prev.class || "1st",
+        halfYearlyMarks:
+          studentYearResults.halfYearly?.total !== undefined
+            ? String(studentYearResults.halfYearly.total)
+            : "",
+        finalMarks:
+          studentYearResults.final?.total !== undefined
+            ? String(studentYearResults.final.total)
+            : "",
+        halfYearlySubjects: hySub,
+        finalSubjects: fnSub,
+        selectedAcademicYear: selectedSessionForMarks,
+      }));
+    }
+  }, [studentYearResults, studentModalOpen, selectedSessionForMarks]);
+
+  const handleCreateSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSessionForm.year.trim()) {
+      toast.error("Please enter an Academic Year label (e.g. 2026-27).");
+      return;
+    }
+    try {
+      await createSessionMutation({
+        year: newSessionForm.year.trim(),
+        startDate: newSessionForm.startDate.trim() || undefined,
+        endDate: newSessionForm.endDate.trim() || undefined,
+        isCurrent: newSessionForm.isCurrent,
+      });
+      toast.success(`Academic Session '${newSessionForm.year.trim()}' created!`);
+      setSessionModalOpen(false);
+      setNewSessionForm({ year: "", startDate: "2026-04-01", endDate: "2027-03-31", isCurrent: false });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to create academic session.");
+    }
+  };
+
+  const handleSetCurrentSession = async (sessionDoc: any) => {
+    try {
+      await setCurrentSessionMutation({ id: sessionDoc._id });
+      toast.success(`Active Academic Session set to '${sessionDoc.year}'!`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to set active session.");
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: Id<"academic_sessions">, sessionYear: string) => {
+    if (!confirm(`Are you sure you want to delete session '${sessionYear}'?`)) return;
+    try {
+      await deleteSessionMutation({ id: sessionId });
+      toast.success(`Academic session '${sessionYear}' removed.`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete session.");
+    }
+  };
+
+  const handleRunMigration = async () => {
+    const target = currentSession?.year || "2025-26";
+    setIsMigrating(true);
+    try {
+      const res = await migrateMutation({ targetYear: target });
+      toast.success(
+        `Migration Successful! Migrated ${res.migratedStudents} students, ${res.createdMarksRows} marks rows, and tagged ${res.taggedAchievements} achievements to session '${target}'.`
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Migration failed.");
+    } finally {
+      setIsMigrating(false);
+    }
+  };
 
   const handleSaveAchievement = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -342,6 +491,7 @@ export default function Admin() {
           date: achievementForm.date,
           certificateUrl: achievementForm.certificateUrl.trim() || undefined,
           imageUrl: achievementForm.certificateUrl.trim() || undefined,
+          academicYear: achievementForm.academicYear || undefined,
         });
         toast.success("Achievement updated successfully.");
       } else {
@@ -352,6 +502,7 @@ export default function Admin() {
           date: achievementForm.date,
           certificateUrl: achievementForm.certificateUrl.trim() || undefined,
           imageUrl: achievementForm.certificateUrl.trim() || undefined,
+          academicYear: achievementForm.academicYear || undefined,
         });
         toast.success("Achievement recorded successfully.");
       }
@@ -363,6 +514,7 @@ export default function Admin() {
         description: "",
         date: new Date().toISOString().split("T")[0],
         certificateUrl: "",
+        academicYear: currentSession?.year || "2025-26",
       });
     } catch (err: any) {
       toast.error(err?.message || "Failed to save achievement.");
@@ -399,6 +551,8 @@ export default function Admin() {
   // Open edit student
   const handleOpenEditStudent = (s: any) => {
     setEditingStudentId(s._id);
+    const activeYear = currentSession?.year || "2025-26";
+    setSelectedSessionForMarks(activeYear);
 
     const hySub: SubjectMarks = { ...emptySubjects };
     const fnSub: SubjectMarks = { ...emptySubjects };
@@ -431,6 +585,8 @@ export default function Admin() {
       dkNumber: s.dkNumber || "",
       halfYearlySubjects: hySub,
       finalSubjects: fnSub,
+      selectedAcademicYear: activeYear,
+      yearClass: s.class || "1st",
     });
     setStudentModalOpen(true);
   };
@@ -475,13 +631,31 @@ export default function Admin() {
         subjects: subjectsData,
       };
 
+      let targetStudentId = editingStudentId;
       if (editingStudentId) {
         await updateStudentMutation({ id: editingStudentId, ...payload });
-        toast.success("Student profile updated!");
       } else {
-        await addStudentMutation(payload);
-        toast.success("Student added successfully!");
+        targetStudentId = await addStudentMutation(payload);
       }
+
+      // Save year-scoped marks and class record
+      if (targetStudentId) {
+        await saveStudentYearMarksMutation({
+          studentId: targetStudentId,
+          academicYear: selectedSessionForMarks,
+          class: studentForm.yearClass || studentForm.class || "1st",
+          halfYearlySubjects: hySub,
+          finalSubjects: fnSub,
+          halfYearlyTotal: hyFinalMarks,
+          finalTotal: fnFinalMarks,
+        });
+      }
+
+      toast.success(
+        editingStudentId
+          ? `Student profile and marks saved for session ${selectedSessionForMarks}!`
+          : `Student added and marks saved for session ${selectedSessionForMarks}!`
+      );
       setStudentModalOpen(false);
       setEditingStudentId(null);
       setStudentForm(emptyStudent);
@@ -695,14 +869,18 @@ export default function Admin() {
 
         {/* Main Tabbed Management */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)} className="space-y-6">
-          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1 shadow-sm">
+          <TabsList className="bg-white border border-slate-200 p-1.5 rounded-xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-1 shadow-sm">
             <TabsTrigger value="students" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <Users className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Students Table
+              Students
+            </TabsTrigger>
+            <TabsTrigger value="sessions" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
+              <Layers className="w-4 h-4 mr-1.5 hidden sm:inline" />
+              Sessions
             </TabsTrigger>
             <TabsTrigger value="fees" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <CreditCard className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Fees Status
+              Fees
             </TabsTrigger>
             <TabsTrigger value="attendance" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <CalendarIcon className="w-4 h-4 mr-1.5 hidden sm:inline" />
@@ -718,7 +896,7 @@ export default function Admin() {
             </TabsTrigger>
             <TabsTrigger value="notices" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <Bell className="w-4 h-4 mr-1.5 hidden sm:inline" />
-              Notices Board
+              Notices
             </TabsTrigger>
             <TabsTrigger value="calendar" className="data-[state=active]:bg-[#0a2540] data-[state=active]:text-white font-semibold text-xs sm:text-sm">
               <Clock className="w-4 h-4 mr-1.5 hidden sm:inline" />
@@ -1004,7 +1182,7 @@ export default function Admin() {
                   <Button
                     type="button"
                     size="sm"
-                    onClick={handleSaveClassAttendance}
+                    onClick={handleSaveAttendance}
                     disabled={isSavingAttendance}
                     className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600 text-xs shadow-sm"
                   >
@@ -1188,10 +1366,22 @@ export default function Admin() {
                     Student Achievements & Recognitions
                   </CardTitle>
                   <CardDescription className="text-slate-500 text-xs">
-                    Log and publish student milestones, sports awards, and academic honors.
+                    Log and publish student milestones, sports awards, and academic honors with session tracking.
                   </CardDescription>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={achievementYearFilter}
+                    onChange={(e) => setAchievementYearFilter(e.target.value)}
+                    className="h-9 bg-white border border-slate-300 rounded-md px-3 text-xs font-medium text-slate-900 focus:ring-amber-500"
+                  >
+                    <option value="all">All Sessions</option>
+                    {(allSessions || []).map((ses) => (
+                      <option key={ses._id} value={ses.year}>
+                        Session {ses.year} {ses.isCurrent ? "(Active)" : ""}
+                      </option>
+                    ))}
+                  </select>
                   <select
                     value={achievementClassFilter}
                     onChange={(e) => setAchievementClassFilter(e.target.value)}
@@ -1211,6 +1401,7 @@ export default function Admin() {
                         description: "",
                         date: new Date().toISOString().split("T")[0],
                         certificateUrl: "",
+                        academicYear: currentSession?.year || "2025-26",
                       });
                       setAchievementModalOpen(true);
                     }}
@@ -1227,6 +1418,7 @@ export default function Admin() {
                       <tr>
                         <th className="p-3">Student Name</th>
                         <th className="p-3">Roll / Class</th>
+                        <th className="p-3">Session</th>
                         <th className="p-3">Achievement Title</th>
                         <th className="p-3">Date</th>
                         <th className="p-3">Description</th>
@@ -1236,7 +1428,7 @@ export default function Admin() {
                     <tbody className="divide-y divide-slate-100">
                       {(allAchievements || []).length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-slate-500">
+                          <td colSpan={7} className="p-8 text-center text-slate-500">
                             No achievements logged yet. Click "Add Achievement" to log a student award.
                           </td>
                         </tr>
@@ -1246,6 +1438,11 @@ export default function Admin() {
                             <td className="p-3 font-semibold text-slate-900">{ach.studentName}</td>
                             <td className="p-3 text-slate-600">
                               <span className="font-mono text-amber-700 font-bold">{ach.rollNumber}</span> • Class {ach.class}
+                            </td>
+                            <td className="p-3">
+                              <Badge variant="outline" className="text-[10px] border-amber-300 bg-amber-50 text-amber-800 font-semibold">
+                                {ach.academicYear || "2025-26"}
+                              </Badge>
                             </td>
                             <td className="p-3 font-bold text-[#0a2540]">{ach.title}</td>
                             <td className="p-3 text-slate-500">{ach.date}</td>
@@ -1263,6 +1460,7 @@ export default function Admin() {
                                       description: ach.description,
                                       date: ach.date,
                                       certificateUrl: ach.certificateUrl || ach.imageUrl || "",
+                                      academicYear: ach.academicYear || currentSession?.year || "2025-26",
                                     });
                                     setAchievementModalOpen(true);
                                   }}
@@ -1285,6 +1483,162 @@ export default function Admin() {
                       )}
                     </tbody>
                   </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 5: ACADEMIC SESSIONS & MULTI-YEAR MANAGEMENT */}
+          <TabsContent value="sessions" className="space-y-6">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <CardTitle className="text-xl text-[#0a2540] flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-amber-600" />
+                    Academic Sessions & Multi-Year History
+                  </CardTitle>
+                  <CardDescription className="text-slate-500 text-xs">
+                    Manage school sessions, activate academic years, and manage historical marks without overwriting past student data.
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <Button
+                    onClick={handleRunMigration}
+                    disabled={isMigrating}
+                    variant="outline"
+                    className="border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100 font-bold text-xs"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isMigrating ? "animate-spin" : ""}`} />
+                    {isMigrating ? "Migrating Data..." : "Run Multi-Year Migration"}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setNewSessionForm({
+                        year: "",
+                        startDate: "2026-04-01",
+                        endDate: "2027-03-31",
+                        isCurrent: false,
+                      });
+                      setSessionModalOpen(true);
+                    }}
+                    className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold text-xs shadow-sm"
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" /> Create New Session
+                  </Button>
+                </div>
+              </CardHeader>
+
+              <CardContent className="pt-6 space-y-6">
+                {/* Stats & Migration Status Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Current Active Session</p>
+                      <h3 className="text-2xl font-bold text-[#0a2540] mt-1">
+                        {currentSession?.year || "2025-26"}
+                      </h3>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-xs font-medium text-emerald-700">Currently Serving Live Marks</span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Registered Sessions</p>
+                      <h3 className="text-2xl font-bold text-slate-800 mt-1">
+                        {(allSessions || []).length} Sessions
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-3">
+                      Historical academic records preserved
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider">Migration Health</p>
+                      <h3 className="text-lg font-bold text-amber-950 mt-1">
+                        {migrationStatus?.recordsCount ?? 0} / {migrationStatus?.totalStudents ?? 0} Students Mapped
+                      </h3>
+                    </div>
+                    <div className="mt-2 text-xs text-amber-800 font-medium">
+                      {migrationStatus?.marksCount ?? 0} Subject Marks Rows in Store
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sessions List Table */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-sm text-[#0a2540]">All Academic Sessions</h4>
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm">
+                    <table className="w-full text-left text-xs sm:text-sm">
+                      <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                        <tr>
+                          <th className="p-3.5">Session Year</th>
+                          <th className="p-3.5">Status</th>
+                          <th className="p-3.5">Session Term Duration</th>
+                          <th className="p-3.5 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {(allSessions || []).length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="p-8 text-center text-slate-500">
+                              No academic sessions created yet. Click "Create New Session" or "Run Multi-Year Migration" to initialize.
+                            </td>
+                          </tr>
+                        ) : (
+                          (allSessions || []).map((ses) => (
+                            <tr key={ses._id} className="hover:bg-slate-50/80">
+                              <td className="p-3.5 font-bold font-mono text-base text-[#0a2540]">
+                                {ses.year}
+                              </td>
+                              <td className="p-3.5">
+                                {ses.isCurrent ? (
+                                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-bold">
+                                    Current Active Session
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-slate-600 border-slate-300">
+                                    Archived / Inactive
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="p-3.5 text-slate-600 font-mono text-xs">
+                                {ses.startDate || "2025-04-01"} &rarr; {ses.endDate || "2026-03-31"}
+                              </td>
+                              <td className="p-3.5 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  {!ses.isCurrent && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleSetCurrentSession(ses)}
+                                      className="text-xs border-emerald-300 text-emerald-800 hover:bg-emerald-50 font-bold"
+                                    >
+                                      Set as Active
+                                    </Button>
+                                  )}
+                                  {!ses.isCurrent && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteSession(ses._id, ses.year)}
+                                      className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1641,21 +1995,66 @@ export default function Admin() {
             </div>
 
             {/* Subject-Wise Marks Entry */}
-            <div className="space-y-4 pt-2 border-t border-slate-200">
-              <h4 className="font-bold text-sm text-[#0a2540]">Subject-Wise Marks Entry (Max 100 per subject)</h4>
+            <div className="space-y-4 pt-3 border-t border-slate-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-amber-50/70 border border-amber-200 rounded-xl">
+                <div>
+                  <h4 className="font-bold text-sm text-[#0a2540] flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-amber-600" />
+                    Subject-Wise Marks Entry (Max 100 per subject)
+                  </h4>
+                  <p className="text-[11px] text-amber-800">
+                    Marks and class are recorded per Academic Session. Changing session allows editing historical or new session marks without overwriting past years.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-bold text-slate-700 uppercase">Target Session</label>
+                    <select
+                      value={selectedSessionForMarks}
+                      onChange={(e) => setSelectedSessionForMarks(e.target.value)}
+                      className="bg-white border border-amber-300 rounded px-2.5 py-1 text-xs font-bold text-amber-950 focus:outline-none block shadow-sm"
+                    >
+                      {(allSessions && allSessions.length > 0 ? allSessions : [{ _id: "default", year: "2025-26", isCurrent: true }]).map((ses: any) => (
+                        <option key={ses._id} value={ses.year}>
+                          {ses.year} {ses.isCurrent ? "(Active)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <label className="text-[10px] font-bold text-slate-700 uppercase">Class for this Session</label>
+                    <select
+                      value={studentForm.yearClass || studentForm.class || "1st"}
+                      onChange={(e) => setStudentForm({ ...studentForm, yearClass: e.target.value })}
+                      className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs font-semibold text-slate-900 focus:outline-none block shadow-sm"
+                    >
+                      {CLASSES.map((c) => (
+                        <option key={c} value={c}>Class {c}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
 
               {/* Half Yearly Subjects */}
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-                <p className="text-xs font-bold text-slate-800">Half Yearly Examination</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-slate-800">1. Half Yearly Examination</p>
+                  <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-xs font-bold font-mono">
+                    Total: {Object.values(studentForm.halfYearlySubjects).reduce((acc, v) => acc + (v !== "" && !isNaN(Number(v)) ? Number(v) : 0), 0)} / 700
+                  </Badge>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {SUBJECTS.map((sub) => (
                     <div key={sub.key} className="space-y-1">
-                      <label className="text-[11px] text-slate-600">{sub.label}</label>
+                      <label className="text-[11px] text-slate-600 font-medium">{sub.label}</label>
                       <Input
                         type="number"
                         min="0"
                         max="100"
-                        placeholder="Marks"
+                        placeholder="Marks (0-100)"
                         value={studentForm.halfYearlySubjects[sub.key] || ""}
                         onChange={(e) =>
                           setStudentForm({
@@ -1675,16 +2074,21 @@ export default function Admin() {
 
               {/* Final Subjects */}
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-                <p className="text-xs font-bold text-slate-800">Final Examination</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-slate-800">2. Final Examination</p>
+                  <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 text-xs font-bold font-mono">
+                    Total: {Object.values(studentForm.finalSubjects).reduce((acc, v) => acc + (v !== "" && !isNaN(Number(v)) ? Number(v) : 0), 0)} / 700
+                  </Badge>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {SUBJECTS.map((sub) => (
                     <div key={sub.key} className="space-y-1">
-                      <label className="text-[11px] text-slate-600">{sub.label}</label>
+                      <label className="text-[11px] text-slate-600 font-medium">{sub.label}</label>
                       <Input
                         type="number"
                         min="0"
                         max="100"
-                        placeholder="Marks"
+                        placeholder="Marks (0-100)"
                         value={studentForm.finalSubjects[sub.key] || ""}
                         onChange={(e) =>
                           setStudentForm({
@@ -2113,26 +2517,52 @@ export default function Admin() {
               </select>
             </div>
 
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Achievement Title *</label>
+              <Input
+                required
+                placeholder="e.g. 1st Rank in Science Fair"
+                value={achievementForm.title}
+                onChange={(e) => setAchievementForm({ ...achievementForm, title: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900"
+              />
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Achievement Title *</label>
-                <Input
-                  required
-                  placeholder="e.g. 1st Rank in Science Fair"
-                  value={achievementForm.title}
-                  onChange={(e) => setAchievementForm({ ...achievementForm, title: e.target.value })}
-                  className="bg-white border-slate-300 text-slate-900"
-                />
-              </div>
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">Date *</label>
                 <Input
                   type="date"
                   required
                   value={achievementForm.date}
-                  onChange={(e) => setAchievementForm({ ...achievementForm, date: e.target.value })}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    let derived = achievementForm.academicYear;
+                    try {
+                      const [y, m] = newDate.split("-").map(Number);
+                      if (y && m) {
+                        derived = m >= 4 ? `${y}-${String((y + 1) % 100).padStart(2, "0")}` : `${y - 1}-${String(y % 100).padStart(2, "0")}`;
+                      }
+                    } catch {}
+                    setAchievementForm({ ...achievementForm, date: newDate, academicYear: derived });
+                  }}
                   className="bg-white border-slate-300 text-slate-900"
                 />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Academic Session *</label>
+                <select
+                  value={achievementForm.academicYear}
+                  onChange={(e) => setAchievementForm({ ...achievementForm, academicYear: e.target.value })}
+                  className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm text-slate-900 focus:ring-amber-500"
+                >
+                  {(allSessions && allSessions.length > 0 ? allSessions : [{ _id: "default", year: "2025-26", isCurrent: true }]).map((ses: any) => (
+                    <option key={ses._id} value={ses.year}>
+                      Session {ses.year} {ses.isCurrent ? "(Active)" : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -2165,6 +2595,79 @@ export default function Admin() {
               </Button>
               <Button type="submit" className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-600">
                 {editingAchievementId ? "Update Achievement" : "Save Achievement"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG 7: CREATE ACADEMIC SESSION */}
+      <Dialog open={sessionModalOpen} onOpenChange={setSessionModalOpen}>
+        <DialogContent className="max-w-md bg-white border-slate-200 text-slate-900">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-[#0a2540] flex items-center gap-2">
+              <Layers className="w-5 h-5 text-amber-600" />
+              Create Academic Session
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              Add a new school session (e.g. "2026-27") to scope examination marks and student classes.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateSession} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">Academic Year Label *</label>
+              <Input
+                required
+                placeholder="e.g. 2026-27"
+                value={newSessionForm.year}
+                onChange={(e) => setNewSessionForm({ ...newSessionForm, year: e.target.value })}
+                className="bg-white border-slate-300 text-slate-900 font-mono font-bold"
+              />
+              <p className="text-[11px] text-slate-500">Standard Indian academic session format: YYYY-YY (e.g., 2026-27)</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Session Start Date</label>
+                <Input
+                  type="date"
+                  value={newSessionForm.startDate}
+                  onChange={(e) => setNewSessionForm({ ...newSessionForm, startDate: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Session End Date</label>
+                <Input
+                  type="date"
+                  value={newSessionForm.endDate}
+                  onChange={(e) => setNewSessionForm({ ...newSessionForm, endDate: e.target.value })}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newSessionForm.isCurrent}
+                  onChange={(e) => setNewSessionForm({ ...newSessionForm, isCurrent: e.target.checked })}
+                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-800">Set as Current Active Session</span>
+                  <p className="text-[11px] text-slate-500">Marks entered by default will belong to this session.</p>
+                </div>
+              </label>
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-slate-200">
+              <Button type="button" variant="outline" onClick={() => setSessionModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-[#0a2540] text-white hover:bg-[#0f3256] font-bold">
+                Create Session
               </Button>
             </DialogFooter>
           </form>
