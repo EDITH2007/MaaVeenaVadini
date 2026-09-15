@@ -58,8 +58,10 @@ import {
   Layers,
   Lock,
   Unlock,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { useAuth } from "@/hooks/use-auth";
 
 type Tab = "students" | "fees" | "attendance" | "achievements" | "sessions" | "provisioning" | "notices" | "calendar" | "requests";
 
@@ -183,19 +185,12 @@ const emptyCalendarEvent: CalendarEventForm = {
 
 export default function Admin() {
   const navigate = useNavigate();
-  const { signIn, signOut } = useAuthActions();
-  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isAuthenticated, isLoading: authLoading, user, signIn, signOut } = useAuth();
   const [passwordInput, setPasswordInput] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("students");
 
-  // Check existing session
-  useEffect(() => {
-    if (sessionStorage.getItem("mvvs_admin_authed") === "true") {
-      setIsLoggedIn(true);
-    }
-  }, []);
+  const isAdminAuthed = isAuthenticated && user?.role === "admin";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,8 +205,7 @@ export default function Admin() {
         password: passwordInput,
         flow: "signIn",
       });
-      setIsLoggedIn(true);
-      sessionStorage.setItem("mvvs_admin_authed", "true");
+      sessionStorage.removeItem("mvvs_admin_authed");
       toast.success("Welcome, Admin!");
       setPasswordInput("");
     } catch (err: any) {
@@ -228,7 +222,6 @@ export default function Admin() {
     } catch {
       // Ignore signOut errors
     }
-    setIsLoggedIn(false);
     sessionStorage.removeItem("mvvs_admin_authed");
     toast.info("Logged out.");
     navigate("/");
@@ -868,7 +861,16 @@ export default function Admin() {
     }
   };
 
-  if (!isLoggedIn) {
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#f5f7fa] text-slate-900 flex flex-col items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 text-amber-500 animate-spin mb-3" />
+        <p className="text-sm font-medium text-slate-600">Verifying Admin Session...</p>
+      </div>
+    );
+  }
+
+  if (!isAdminAuthed) {
     return (
       <div className="min-h-screen bg-[#f5f7fa] text-slate-900 flex items-center justify-center p-4">
         <Card className="w-full max-w-md bg-white border-slate-200 text-slate-900 shadow-xl">

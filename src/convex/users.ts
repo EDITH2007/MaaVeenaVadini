@@ -31,3 +31,38 @@ export const getCurrentUser = async (ctx: QueryCtx) => {
   }
   return await ctx.db.get(userId);
 };
+
+export const getCounts = query({
+  args: {},
+  handler: async (ctx) => {
+    const sessions = await ctx.db.query("authSessions").collect();
+    const accounts = await ctx.db.query("authAccounts").collect();
+    const users = await ctx.db.query("users").collect();
+    return {
+      env_CONVEX_SITE_URL: process.env.CONVEX_SITE_URL ?? "NOT_SET",
+      env_SITE_URL: process.env.SITE_URL ?? "NOT_SET",
+      sessionCount: sessions.length,
+      accountCount: accounts.length,
+      userCount: users.length,
+      sessions: sessions.map((s) => ({
+        id: s._id,
+        userId: s.userId,
+        expirationTime: s.expirationTime,
+      })),
+      accounts: accounts.map((a) => ({
+        id: a._id,
+        userId: a.userId,
+        provider: a.provider,
+        providerAccountId: a.providerAccountId,
+      })),
+      users: users.map((u) => ({
+        id: u._id,
+        email: u.email,
+        role: u.role,
+        rollNumber: u.rollNumber,
+      })),
+    };
+  },
+});
+
+

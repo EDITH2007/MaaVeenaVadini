@@ -1,5 +1,6 @@
 import { mutation, query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { normalizeDOB } from "./utils";
 
 const subjectMarksValidator = v.optional(v.object({
   hindi: v.optional(v.number()),
@@ -91,7 +92,8 @@ export const add = mutation({
     if (existing) {
       throw new Error("A student with this roll number already exists.");
     }
-    return await ctx.db.insert("students", { ...args, rollNumber: normalizedRoll });
+    const dob = normalizeDOB(args.dateOfBirth) || "2015-01-01";
+    return await ctx.db.insert("students", { ...args, rollNumber: normalizedRoll, dateOfBirth: dob });
   },
 });
 
@@ -113,7 +115,8 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const { id, ...rest } = args;
-    await ctx.db.patch(id, { ...rest, rollNumber: rest.rollNumber.toUpperCase().trim() });
+    const dob = normalizeDOB(rest.dateOfBirth) || "2015-01-01";
+    await ctx.db.patch(id, { ...rest, rollNumber: rest.rollNumber.toUpperCase().trim(), dateOfBirth: dob });
   },
 });
 

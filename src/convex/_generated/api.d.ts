@@ -20,6 +20,7 @@ import type * as results from "../results.js";
 import type * as studentDashboard from "../studentDashboard.js";
 import type * as students from "../students.js";
 import type * as users from "../users.js";
+import type * as utils from "../utils.js";
 
 import type {
   ApiFromModules,
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   studentDashboard: typeof studentDashboard;
   students: typeof students;
   users: typeof users;
+  utils: typeof utils;
 }>;
 
 /**

@@ -2,6 +2,7 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Scrypt } from "lucia";
+import { normalizeDOB } from "./utils";
 
 const subjectMarksValidator = v.optional(
   v.object({
@@ -119,7 +120,7 @@ export const listStudents = query({
 async function syncStudentAuthAccount(ctx: any, student: any) {
   const rollNumber = student.rollNumber.toUpperCase().trim();
   const email = `${rollNumber.toLowerCase()}@mvvs.in`;
-  const dob = student.dateOfBirth?.trim() || "2015-01-01";
+  const dob = normalizeDOB(student.dateOfBirth) || "2015-01-01";
 
   let user = await ctx.db
     .query("users")
@@ -195,7 +196,7 @@ export const addStudent = mutation({
     if (existing) {
       throw new Error("A student with this roll number already exists.");
     }
-    const dob = args.dateOfBirth?.trim() || "2015-01-01";
+    const dob = normalizeDOB(args.dateOfBirth) || "2015-01-01";
     const studentId = await ctx.db.insert("students", {
       ...args,
       rollNumber: normalizedRoll,
@@ -229,7 +230,7 @@ export const updateStudent = mutation({
     await checkAdmin(ctx);
     const { id, ...rest } = args;
     const normalizedRoll = rest.rollNumber.toUpperCase().trim();
-    const dob = rest.dateOfBirth?.trim() || "2015-01-01";
+    const dob = normalizeDOB(rest.dateOfBirth) || "2015-01-01";
     await ctx.db.patch(id, {
       ...rest,
       rollNumber: normalizedRoll,
@@ -257,9 +258,8 @@ export const autoProvisionAllStudents = mutation({
     const students = await ctx.db.query("students").take(500);
     let updatedCount = 0;
     for (const student of students) {
-      let dob = student.dateOfBirth?.trim();
-      if (!dob) {
-        dob = "2015-01-01";
+      let dob = normalizeDOB(student.dateOfBirth) || "2015-01-01";
+      if (student.dateOfBirth !== dob) {
         await ctx.db.patch(student._id, { dateOfBirth: dob });
         student.dateOfBirth = dob;
       }
@@ -276,9 +276,8 @@ export const autoProvisionAllStudentsInternal = internalMutation({
     const students = await ctx.db.query("students").take(500);
     let updatedCount = 0;
     for (const student of students) {
-      let dob = student.dateOfBirth?.trim();
-      if (!dob) {
-        dob = "2015-01-01";
+      let dob = normalizeDOB(student.dateOfBirth) || "2015-01-01";
+      if (student.dateOfBirth !== dob) {
         await ctx.db.patch(student._id, { dateOfBirth: dob });
         student.dateOfBirth = dob;
       }

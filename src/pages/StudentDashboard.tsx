@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/hooks/use-auth";
@@ -37,6 +37,7 @@ import {
   ChevronRight,
   Search,
   Check,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -86,7 +87,20 @@ export default function StudentDashboard() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
+  const [isSettled, setIsSettled] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsSettled(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   const studentProfile = useQuery(api.studentDashboard.getMyProfile);
+
+  console.log("[StudentDashboard Render Guard Check]", {
+    authLoading,
+    isAuthenticated,
+    isSettled,
+    studentProfile: studentProfile === undefined ? "LOADING (undefined)" : studentProfile === null ? "NULL (not found)" : "PROFILE FOUND",
+  });
   const [achievementSessionFilter, setAchievementSessionFilter] = useState("all");
   const achievements = useQuery(api.studentDashboard.getMyAchievements, {
     academicYearFilter: achievementSessionFilter !== "all" ? achievementSessionFilter : undefined,
@@ -132,8 +146,22 @@ export default function StudentDashboard() {
     }
   };
 
+  // Render loading state while authenticating, fetching profile data, or settling session state
+  if (authLoading || (isAuthenticated && studentProfile === undefined) || (!isSettled && !isAuthenticated)) {
+    return (
+      <div className="min-h-screen bg-[#f5f7fa] text-slate-900 flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+          <p className="text-sm font-medium text-slate-600">
+            {!isSettled && !isAuthenticated ? "Confirming session..." : "Loading student dashboard..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // If user is unauthenticated, show public result lookup option or login prompt
-  if (!authLoading && !isAuthenticated) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#f5f7fa] text-slate-900 flex flex-col font-sans">
         {/* Navbar */}

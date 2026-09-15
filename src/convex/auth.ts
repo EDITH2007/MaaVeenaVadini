@@ -6,14 +6,18 @@ import { emailOtp } from "./auth/emailOtp";
 import { DataModel } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { Scrypt } from "lucia";
+import { normalizeDOB } from "./utils";
 
 function CustomPassword() {
   const basePasswordProvider = Password<DataModel>({
     profile(params) {
       const email = (params.email as string)?.toLowerCase().trim();
+      const isStudent = email !== "admin@mvvs.in" && email?.endsWith("@mvvs.in");
+      const rollNumber = isStudent ? email.split("@")[0].toUpperCase().trim() : undefined;
       return {
         email,
         role: email === "admin@mvvs.in" ? "admin" : "student",
+        ...(rollNumber ? { rollNumber } : {}),
       };
     },
   });
@@ -23,11 +27,13 @@ function CustomPassword() {
     authorize: async (params, ctx) => {
       const flow = params.flow as string;
       const email = (params.email as string)?.toLowerCase().trim();
-      const password = (params.password as string)?.trim();
+      const rawPassword = (params.password as string)?.trim();
 
-      if (!email || !password) {
+      if (!email || !rawPassword) {
         throw new Error("Invalid credentials");
       }
+
+      let activeParams = params;
 
       if (email === "admin@mvvs.in") {
         if (flow === "signUp") {
@@ -47,22 +53,34 @@ function CustomPassword() {
           throw new Error("Invalid credentials");
         }
 
-        const officialDob = student.dateOfBirth?.trim();
-        if (!officialDob || password !== officialDob) {
+        const normalizedTyped = normalizeDOB(rawPassword);
+        const officialDob = normalizeDOB(student.dateOfBirth);
+
+        if (!normalizedTyped || !officialDob || normalizedTyped !== officialDob) {
           throw new Error("Invalid credentials");
         }
+
+        activeParams = {
+          ...params,
+          password: normalizedTyped,
+        };
       } else {
         throw new Error("Invalid credentials");
       }
 
-      return await basePasswordProvider.authorize(params, ctx);
+      console.log("[CustomPassword authorize] params:", params);
+      return await basePasswordProvider.authorize(activeParams, ctx);
     },
     crypto: {
       async hashSecret(password: string) {
+        console.log("[hashSecret] password len:", password.length);
         return await new Scrypt().hash(password);
       },
       async verifySecret(password: string, hash: string) {
-        return await new Scrypt().verify(hash, password);
+        console.log("[verifySecret] password:", password, "hash starts with:", hash?.substring(0, 15));
+        const res = await new Scrypt().verify(hash, password);
+        console.log("[verifySecret] result:", res);
+        return res;
       },
     },
   });

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Shield, GraduationCap, Lock, User, ArrowRight, Loader2, KeyRound } from "lucide-react";
 import { toast } from "sonner";
+import { normalizeDOB } from "@/utils/dateUtils";
 
 interface AuthProps {
   redirectAfterAuth?: string;
@@ -28,10 +29,13 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log("[Auth useEffect]", { authLoading, isAuthenticated, activeTab, redirectAfterAuth });
     if (!authLoading && isAuthenticated) {
       if (activeTab === "admin" || searchParams.get("role") === "admin") {
+        console.log("[Auth useEffect] Navigating to /admin");
         navigate("/admin");
       } else {
+        console.log("[Auth useEffect] Navigating to", redirectAfterAuth || "/student");
         navigate(redirectAfterAuth || "/student");
       }
     }
@@ -47,6 +51,12 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
       return;
     }
 
+    const normalizedPassword = normalizeDOB(trimmedPassword);
+    if (!normalizedPassword) {
+      setError("Please enter a valid Date of Birth (e.g. 2013-12-30 or 30-12-2013).");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -56,27 +66,20 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
       formattedEmail = `${formattedEmail}@mvvs.in`;
     }
 
-    try {
-      // First try signing in
-      try {
-        await signIn("password", {
-          email: formattedEmail,
-          password: trimmedPassword,
-          flow: "signIn",
-        });
-      } catch (signInErr: any) {
-        // If account not registered in authAccounts yet, attempt registration with official DOB
-        await signIn("password", {
-          email: formattedEmail,
-          password: trimmedPassword,
-          flow: "signUp",
-        });
-      }
+    console.log("[handleStudentSubmit] 1. BEFORE signIn call:", { formattedEmail, normalizedPasswordLength: normalizedPassword.length });
 
+    try {
+      console.log("[handleStudentSubmit] Attempting signIn (flow: signIn)...");
+      const res = await signIn("password", {
+        email: formattedEmail,
+        password: normalizedPassword,
+        flow: "signIn",
+      });
+      console.log("[handleStudentSubmit] signIn resolved successfully. Response JSON:", JSON.stringify(res));
+      console.log("[handleStudentSubmit] localStorage snapshot JSON:", JSON.stringify({ ...localStorage }));
       toast.success("Welcome back! Student logged in successfully.");
-      navigate("/student");
     } catch (err: any) {
-      console.error("Student Auth Error:", err);
+      console.error("[handleStudentSubmit] ERROR IN AUTH FLOW:", err);
       setError("Invalid Roll Number or Password (DOB). Please check your details or contact admin.");
     } finally {
       setIsLoading(false);
@@ -99,7 +102,6 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
         password: adminPassword,
         flow: "signIn",
       });
-      sessionStorage.setItem("mvvs_admin_authed", "true");
       toast.success("Admin login successful.");
       navigate("/admin");
     } catch (err: any) {
@@ -216,7 +218,7 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
                       <Lock className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                       <Input
                         type="password"
-                        placeholder="YYYY-MM-DD (e.g. 2015-01-01)"
+                        placeholder="e.g. 2013-12-30 or 30-12-2013"
                         value={studentPassword}
                         onChange={(e) => setStudentPassword(e.target.value)}
                         className="pl-9 h-11 bg-white border-slate-300 text-slate-900 text-base sm:text-sm placeholder:text-slate-400 focus:border-amber-500"
@@ -225,7 +227,7 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
                       />
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      Default password is your Date of Birth on record.
+                      Default password is your Date of Birth on record (accepts YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY, or DDMMYYYY).
                     </p>
                   </div>
 
