@@ -1,6 +1,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useConvex } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Shield, GraduationCap, Lock, User, ArrowRight, Loader2, KeyRound } from "lucide-react";
 import { toast } from "sonner";
-import { normalizeDOB } from "@/utils/dateUtils";
 
 interface AuthProps {
   redirectAfterAuth?: string;
 }
 
 function AuthContent({ redirectAfterAuth }: AuthProps) {
+  const convex = useConvex();
   const { signIn } = useAuthActions();
   const { isLoading: authLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -29,13 +31,10 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log("[Auth useEffect]", { authLoading, isAuthenticated, activeTab, redirectAfterAuth });
     if (!authLoading && isAuthenticated) {
       if (activeTab === "admin" || searchParams.get("role") === "admin") {
-        console.log("[Auth useEffect] Navigating to /admin");
         navigate("/admin");
       } else {
-        console.log("[Auth useEffect] Navigating to", redirectAfterAuth || "/student");
         navigate(redirectAfterAuth || "/student");
       }
     }
@@ -43,17 +42,8 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
 
   const handleStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmedRollOrEmail = rollOrEmail.trim();
-    const trimmedPassword = studentPassword.trim();
-
-    if (!trimmedRollOrEmail || !trimmedPassword) {
+    if (!rollOrEmail || !studentPassword) {
       setError("Please enter your Roll Number / Email and Date of Birth.");
-      return;
-    }
-
-    const normalizedPassword = normalizeDOB(trimmedPassword);
-    if (!normalizedPassword) {
-      setError("Please enter a valid Date of Birth (e.g. 2013-12-30 or 30-12-2013).");
       return;
     }
 
@@ -61,26 +51,77 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
     setError(null);
 
     // Format email correctly to match {rollnumber}@mvvs.in
-    let formattedEmail = trimmedRollOrEmail.toLowerCase();
+    let formattedEmail = rollOrEmail.trim().toLowerCase();
     if (!formattedEmail.includes("@")) {
       formattedEmail = `${formattedEmail}@mvvs.in`;
     }
+    const rollNumber = formattedEmail.split("@")[0].toUpperCase().trim();
+    const trimmedPassword = studentPassword.trim();
 
-    console.log("[handleStudentSubmit] 1. BEFORE signIn call:", { formattedEmail, normalizedPasswordLength: normalizedPassword.length });
-
+    // 1. Pre-authenticate check against student database record
     try {
-      console.log("[handleStudentSubmit] Attempting signIn (flow: signIn)...");
-      const res = await signIn("password", {
-        email: formattedEmail,
-        password: normalizedPassword,
-        flow: "signIn",
+      const check = await convex.query(api.students.validateStudentCredentials, {
+        rollNumber,
+        password: trimmedPassword,
       });
-      console.log("[handleStudentSubmit] signIn resolved successfully. Response JSON:", JSON.stringify(res));
-      console.log("[handleStudentSubmit] localStorage snapshot JSON:", JSON.stringify({ ...localStorage }));
+      if (!check.valid) {
+        setError(check.reason || "Invalid Roll Number or Date of Birth.");
+        setIsLoading(false);
+        return;
+      }
+    } catch (checkErr: any) {
+      console.warn("Pre-auth check warning:", checkErr);
+    }
+
+    // 2. Perform Convex Auth flow using flow: "signUp" (auto-creates auth account for 1st time students, verifies password for returning students)
+    try {
+      try {
+        await signIn("password", {
+          email: formattedEmail,
+          password: trimmedPassword,
+          flow: "signUp",
+        });
+      } catch (signUpErr: any) {
+        const rawSignUpErr = String(signUpErr?.message || signUpErr || "");
+        if (rawSignUpErr.includes("already exists") || rawSignUpErr.includes("InvalidSecret")) {
+          try {
+            await convex.mutation(api.students.syncStudentAuthPassword, {
+              rollNumber,
+              password: trimmedPassword,
+            });
+            await signIn("password", {
+              email: formattedEmail,
+              password: trimmedPassword,
+              flow: "signUp",
+            });
+          } catch (syncErr) {
+            await signIn("password", {
+              email: formattedEmail,
+              password: trimmedPassword,
+              flow: "signIn",
+            });
+          }
+        } else {
+          await signIn("password", {
+            email: formattedEmail,
+            password: trimmedPassword,
+            flow: "signIn",
+          });
+        }
+      }
+
       toast.success("Welcome back! Student logged in successfully.");
+      navigate("/student");
     } catch (err: any) {
-      console.error("[handleStudentSubmit] ERROR IN AUTH FLOW:", err);
-      setError("Invalid Roll Number or Password (DOB). Please check your details or contact admin.");
+      console.error("Student Auth Error:", err);
+      let userFriendlyMsg = "Incorrect Password / Date of Birth. Please ensure your Date of Birth is entered in YYYY-MM-DD format (e.g. 2015-01-01).";
+      const rawMsg = String(err?.message || err || "");
+
+      if (rawMsg.includes("Invalid password") || rawMsg.includes("at least 8 characters")) {
+        userFriendlyMsg = "Password must be at least 8 characters long. Please enter your Date of Birth in YYYY-MM-DD format (e.g. 2015-01-01).";
+      }
+
+      setError(userFriendlyMsg);
     } finally {
       setIsLoading(false);
     }
@@ -102,6 +143,7 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
         password: adminPassword,
         flow: "signIn",
       });
+      sessionStorage.setItem("mvvs_admin_authed", "true");
       toast.success("Admin login successful.");
       navigate("/admin");
     } catch (err: any) {
@@ -218,7 +260,7 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
                       <Lock className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                       <Input
                         type="password"
-                        placeholder="e.g. 2013-12-30 or 30-12-2013"
+                        placeholder="YYYY-MM-DD (e.g. 2015-01-01)"
                         value={studentPassword}
                         onChange={(e) => setStudentPassword(e.target.value)}
                         className="pl-9 h-11 bg-white border-slate-300 text-slate-900 text-base sm:text-sm placeholder:text-slate-400 focus:border-amber-500"
@@ -227,7 +269,7 @@ function AuthContent({ redirectAfterAuth }: AuthProps) {
                       />
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      Default password is your Date of Birth on record (accepts YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY, or DDMMYYYY).
+                      Default password is your Date of Birth on record.
                     </p>
                   </div>
 

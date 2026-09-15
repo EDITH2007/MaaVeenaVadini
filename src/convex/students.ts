@@ -1,6 +1,5 @@
-import { mutation, query, internalQuery } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { normalizeDOB } from "./utils";
 
 const subjectMarksValidator = v.optional(v.object({
   hindi: v.optional(v.number()),
@@ -46,13 +45,63 @@ export const getByRoll = query({
   },
 });
 
-export const getByRollInternal = internalQuery({
-  args: { rollNumber: v.string() },
+export const validateStudentCredentials = query({
+  args: { rollNumber: v.string(), password: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const normalizedRoll = args.rollNumber.toUpperCase().trim();
+    const student = await ctx.db
       .query("students")
-      .withIndex("by_roll", (q) => q.eq("rollNumber", args.rollNumber.toUpperCase().trim()))
+      .withIndex("by_roll", (q) => q.eq("rollNumber", normalizedRoll))
       .unique();
+
+    if (!student) {
+      return { valid: false, reason: "Roll Number not found in school records. Please contact school administration." };
+    }
+
+    const expectedDob = (student.dateOfBirth || "2015-01-01").trim();
+    const providedDob = args.password.trim();
+
+    if (expectedDob !== providedDob) {
+      return { valid: false, reason: "Incorrect Password / Date of Birth. Please enter your DOB in YYYY-MM-DD format as recorded." };
+    }
+
+    return { valid: true, studentId: student._id };
+  },
+});
+
+export const syncStudentAuthPassword = mutation({
+  args: { rollNumber: v.string(), password: v.string() },
+  handler: async (ctx, args) => {
+    const normalizedRoll = args.rollNumber.toUpperCase().trim();
+    const student = await ctx.db
+      .query("students")
+      .withIndex("by_roll", (q) => q.eq("rollNumber", normalizedRoll))
+      .unique();
+
+    if (!student) {
+      throw new Error("Student record not found.");
+    }
+
+    const expectedDob = (student.dateOfBirth || "2015-01-01").trim();
+    const providedDob = args.password.trim();
+
+    if (expectedDob !== providedDob) {
+      throw new Error("Date of Birth mismatch.");
+    }
+
+    const email = `${normalizedRoll.toLowerCase()}@mvvs.in`;
+    const accounts = await ctx.db
+      .query("authAccounts")
+      .withIndex("providerAndAccountId", (q) =>
+        q.eq("provider", "password").eq("providerAccountId", email)
+      )
+      .collect();
+
+    for (const acc of accounts) {
+      await ctx.db.delete(acc._id);
+    }
+
+    return { reset: accounts.length > 0 };
   },
 });
 
@@ -92,8 +141,7 @@ export const add = mutation({
     if (existing) {
       throw new Error("A student with this roll number already exists.");
     }
-    const dob = normalizeDOB(args.dateOfBirth) || "2015-01-01";
-    return await ctx.db.insert("students", { ...args, rollNumber: normalizedRoll, dateOfBirth: dob });
+    return await ctx.db.insert("students", { ...args, rollNumber: normalizedRoll });
   },
 });
 
@@ -115,8 +163,7 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const { id, ...rest } = args;
-    const dob = normalizeDOB(rest.dateOfBirth) || "2015-01-01";
-    await ctx.db.patch(id, { ...rest, rollNumber: rest.rollNumber.toUpperCase().trim(), dateOfBirth: dob });
+    await ctx.db.patch(id, { ...rest, rollNumber: rest.rollNumber.toUpperCase().trim() });
   },
 });
 
